@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: mieter
+          POSTGRES_USER: mieter
+          POSTGRES_PASSWORD: mieter-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U mieter -d mieter"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SECRET_KEY: nur-fuer-ci-nicht-geheim
+      DATABASE_URL: postgres://mieter:mieter-ci@localhost:5432/mieter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --locked
+      - run: uv run python manage.py check
+      - run: uv run python manage.py makemigrations --check --dry-run
+      - run: uv run pytest
+
+  gitleaks:
+    name: Secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Gleiche Version wie in .pre-commit-config.yaml. Der pre-commit-Hook prüft nur
+      # gestagte Änderungen, deshalb hier das Binary über die gesamte Git-Historie.
+      - name: gitleaks installieren
+        env:
+          GITLEAKS_VERSION: "8.30.0"
+        run: |
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          datei="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfLO "${base}/${datei}"
+          curl -sSfL "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt" | grep " ${datei}$" | sha256sum -c -
+          tar -xzf "${datei}" gitleaks
+      - run: ./gitleaks git --redact --verbose .
