@@ -1,0 +1,30 @@
+# Geheimnisse – nie committen
+.env
+.env.*
+!.env.beispiel
+
+# Echte Daten, Uploads, Datenbank-Dumps
+daten/
+media/
+backup/
+*.sql
+*.dump
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+staticfiles/
+
+# Claude Code: persönliche Einstellungen (settings.json wird geteilt)
+.claude/settings.local.json
+
+# macOS und Editoren
+.DS_Store
+.vscode/
+.idea/
