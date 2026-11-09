@@ -2,6 +2,8 @@
 name = "mieter-app"
 version = "0.1.0"
 description = "Betriebskostenabrechnungen für Mieter erfassen, nachrechnen und auswerten"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.13"
 dependencies = [
     "django>=5.2,<5.3",

@@ -43,3 +43,7 @@ uv run pre-commit install
 
 Die CI auf GitHub Actions (`.github/workflows/ci.yml`) führt Lint, Tests und
 gitleaks bei jedem Push auf `main` und bei Pull Requests aus.
+
+## Lizenz
+
+[MIT](LICENSE)
