@@ -1,0 +1,4 @@
+<label for="{{ feld.id_for_label }}">{{ feld.label }}</label>
+{{ feld }}
+{% if feld.help_text %}<small class="erlaeuterung">{{ feld.help_text }}</small>{% endif %}
+{% for f in feld.errors %}<small class="fehler">{{ f }}</small>{% endfor %}

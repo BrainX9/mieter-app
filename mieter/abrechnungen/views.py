@@ -15,6 +15,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
+from . import hilfe
 from .forms import (
     AbrechnungForm,
     AbrechnungsbereichForm,
@@ -178,6 +179,22 @@ def abrechnung_loeschen(request, pk):
 # Abrechnungsbereiche
 
 
+def _bereich_formular(request, form, titel, abrechnung):
+    return render(
+        request,
+        "abrechnungen/bereich_formular.html",
+        {
+            "form": form,
+            "titel": titel,
+            "zurueck": abrechnung,
+            "mengenhilfe": [{"schluessel": s, "hilfe": h} for s, h in hilfe.MENGENHILFE.items()],
+            "individuell_hilfe": hilfe.INDIVIDUELL_HILFE,
+            "rundungsbeispiel": hilfe.rundungsbeispiel(),
+            "beispiel": hilfe,
+        },
+    )
+
+
 def bereich_neu(request, abrechnung_pk):
     abrechnung = _schreiben(Abrechnung, request, abrechnung_pk)
     vorgabe = {"reihenfolge": abrechnung.bereiche.count() + 1}
@@ -194,11 +211,7 @@ def bereich_neu(request, abrechnung_pk):
         return redirect(
             reverse("abrechnung_detail", args=[abrechnung.pk]) + f"#bereich-{bereich.pk}"
         )
-    return render(
-        request,
-        "abrechnungen/formular.html",
-        {"form": form, "titel": "Neuer Abrechnungsbereich", "zurueck": abrechnung},
-    )
+    return _bereich_formular(request, form, "Neuer Abrechnungsbereich", abrechnung)
 
 
 def bereich_bearbeiten(request, pk):
@@ -210,11 +223,7 @@ def bereich_bearbeiten(request, pk):
         return redirect(
             reverse("abrechnung_detail", args=[bereich.abrechnung_id]) + f"#bereich-{bereich.pk}"
         )
-    return render(
-        request,
-        "abrechnungen/formular.html",
-        {"form": form, "titel": "Bereich bearbeiten", "zurueck": bereich.abrechnung},
-    )
+    return _bereich_formular(request, form, "Bereich bearbeiten", bereich.abrechnung)
 
 
 def bereich_loeschen(request, pk):

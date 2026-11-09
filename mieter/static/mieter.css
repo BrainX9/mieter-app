@@ -21,3 +21,6 @@ form.zeile fieldset { margin-bottom: 0.5rem; }
 button.loeschen { background: var(--pico-del-color); border-color: var(--pico-del-color); }
 .ergebnis header { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .erlaeuterung { color: var(--pico-muted-color); }
+.mengenhilfe { display: block; margin: -0.5rem 0 1rem; }
+.mengenhilfe[hidden], [data-nur-mengen][hidden], [data-nur-n-stellen][hidden] { display: none; }
+.rundungshilfe { margin-top: 1rem; }
