@@ -1,0 +1,430 @@
+"""Datenmodell für Wohnungen und Betriebskostenabrechnungen.
+
+Kostenarten und Zusatzfelder sind Daten, keine Spalten: Neue Kostenarten oder Felder
+brauchen keine Migration.
+"""
+
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db import models
+from django.db.models import F, Q
+
+GELD = {"max_digits": 12, "decimal_places": 2}
+MENGE = {"max_digits": 14, "decimal_places": 4}
+
+
+class WohnungsdatenQuerySet(models.QuerySet):
+    """Filtert über die Mitgliedschaft des Nutzers in der Wohnung.
+
+    Jedes Modell legt in WOHNUNG_PFAD fest, wie es zur Wohnung kommt.
+    """
+
+    def _pfad(self, feld):
+        pfad = self.model.WOHNUNG_PFAD
+        return f"{pfad}__{feld}" if pfad else feld
+
+    def fuer_nutzer(self, nutzer):
+        """Alles, was der Nutzer sehen darf."""
+        if not getattr(nutzer, "is_authenticated", False):
+            return self.none()
+        return self.filter(**{self._pfad("mitgliedschaften__nutzer"): nutzer})
+
+    def verwaltbar_fuer(self, nutzer):
+        """Alles, was der Nutzer ändern darf."""
+        if not getattr(nutzer, "is_authenticated", False):
+            return self.none()
+        return self.filter(
+            **{
+                self._pfad("mitgliedschaften__nutzer"): nutzer,
+                self._pfad("mitgliedschaften__rolle"): Mitgliedschaft.Rolle.VERWALTEN,
+            }
+        )
+
+
+class Wohnung(models.Model):
+    WOHNUNG_PFAD = ""
+
+    bezeichnung = models.CharField("Bezeichnung", max_length=200)
+    adresse = models.TextField("Adresse", blank=True)
+    wohnflaeche = models.DecimalField(
+        "Wohnfläche (m²)", null=True, blank=True, validators=[MinValueValidator(0)], **MENGE
+    )
+    mitglieder = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        through="Mitgliedschaft",
+        related_name="wohnungen",
+        verbose_name="Mitglieder",
+    )
+
+    objects = WohnungsdatenQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "Wohnung"
+        verbose_name_plural = "Wohnungen"
+        ordering = ["bezeichnung"]
+
+    def __str__(self):
+        return self.bezeichnung
+
+
+class Mitgliedschaft(models.Model):
+    WOHNUNG_PFAD = "wohnung"
+
+    class Rolle(models.TextChoices):
+        VERWALTEN = "verwalten", "Verwalten"
+        LESEN = "lesen", "Nur lesen"
+
+    nutzer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="mitgliedschaften",
+        verbose_name="Nutzer",
+    )
+    wohnung = models.ForeignKey(
+        Wohnung, on_delete=models.CASCADE, related_name="mitgliedschaften", verbose_name="Wohnung"
+    )
+    rolle = models.CharField("Rolle", max_length=20, choices=Rolle, default=Rolle.VERWALTEN)
+
+    objects = WohnungsdatenQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "Mitgliedschaft"
+        verbose_name_plural = "Mitgliedschaften"
+        constraints = [
+            models.UniqueConstraint(fields=["nutzer", "wohnung"], name="mitgliedschaft_eindeutig"),
+        ]
+
+    def __str__(self):
+        return f"{self.nutzer} – {self.wohnung} ({self.get_rolle_display()})"
+
+
+class Kostenart(models.Model):
+    """Katalog der Kostenarten, z. B. nach § 2 BetrKV. Gilt für alle Wohnungen."""
+
+    name = models.CharField("Name", max_length=200, unique=True)
+    beschreibung = models.TextField("Beschreibung", blank=True)
+    betrkv_nummer = models.PositiveSmallIntegerField(
+        "Nr. nach § 2 BetrKV",
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(17)],
+    )
+    aktiv = models.BooleanField("Aktiv", default=True)
+
+    class Meta:
+        verbose_name = "Kostenart"
+        verbose_name_plural = "Kostenarten"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class Abrechnung(models.Model):
+    WOHNUNG_PFAD = "wohnung"
+
+    wohnung = models.ForeignKey(
+        Wohnung, on_delete=models.CASCADE, related_name="abrechnungen", verbose_name="Wohnung"
+    )
+    abrechnungsjahr = models.PositiveSmallIntegerField(
+        "Abrechnungsjahr", validators=[MinValueValidator(1990), MaxValueValidator(2100)]
+    )
+    zeitraum_von = models.DateField("Abrechnungszeitraum von")
+    zeitraum_bis = models.DateField("Abrechnungszeitraum bis")
+    vermieter = models.CharField("Vermieter", max_length=200, blank=True)
+    notiz = models.TextField("Notiz", blank=True)
+    erstellt_am = models.DateTimeField("Erstellt am", auto_now_add=True)
+    geaendert_am = models.DateTimeField("Geändert am", auto_now=True)
+
+    objects = WohnungsdatenQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "Abrechnung"
+        verbose_name_plural = "Abrechnungen"
+        ordering = ["-abrechnungsjahr", "-zeitraum_von", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(zeitraum_bis__gte=F("zeitraum_von")),
+                name="abrechnung_zeitraum_gueltig",
+                violation_error_message="Das Ende des Zeitraums liegt vor dem Beginn.",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.wohnung} – {self.abrechnungsjahr}"
+
+    def berechnen(self):
+        """Rechnet die Abrechnung nach. Siehe mieter.abrechnungen.berechnung."""
+        from .berechnung import abrechnung_berechnen
+
+        return abrechnung_berechnen(self)
+
+
+class Abrechnungsbereich(models.Model):
+    """Ein Block der Abrechnung mit eigenem Verteilerschlüssel und eigener Rundungsregel."""
+
+    WOHNUNG_PFAD = "abrechnung__wohnung"
+
+    class Verteilerschluessel(models.TextChoices):
+        WOHNFLAECHE = "wohnflaeche", "Wohnfläche (m²)"
+        EINHEITEN = "einheiten", "Punkte / Einheiten"
+        PERSONEN = "personen", "Personen"
+        WOHNEINHEITEN = "wohneinheiten", "Wohneinheiten"
+        DIREKT = "direkt", "Direkt (Betrag der Wohnung)"
+
+    class Rundungsregel(models.TextChoices):
+        WIE_VERMIETER = "wie_vermieter", "Wie Vermieter (Einheitspreis auf 2 Stellen)"
+        N_STELLEN = "n_stellen", "Einheitspreis auf n Stellen"
+        EXAKT = "exakt", "Exakt (nur Endbetrag runden)"
+
+    abrechnung = models.ForeignKey(
+        Abrechnung, on_delete=models.CASCADE, related_name="bereiche", verbose_name="Abrechnung"
+    )
+    bezeichnung = models.CharField("Bezeichnung", max_length=200)
+    verteilerschluessel = models.CharField(
+        "Verteilerschlüssel",
+        max_length=20,
+        choices=Verteilerschluessel,
+        default=Verteilerschluessel.WOHNFLAECHE,
+    )
+    gesamtmenge = models.DecimalField(
+        "Gesamtmenge",
+        null=True,
+        blank=True,
+        help_text="Summe des Verteilerschlüssels im Haus, z. B. Gesamtwohnfläche.",
+        **MENGE,
+    )
+    anteil_menge = models.DecimalField(
+        "Anteil der Wohnung",
+        null=True,
+        blank=True,
+        help_text="Wert der Wohnung im Verteilerschlüssel, z. B. ihre Wohnfläche.",
+        **MENGE,
+    )
+    rundungsregel = models.CharField(
+        "Rundungsregel",
+        max_length=20,
+        choices=Rundungsregel,
+        default=Rundungsregel.WIE_VERMIETER,
+    )
+    nachkommastellen = models.PositiveSmallIntegerField(
+        "Nachkommastellen",
+        default=2,
+        validators=[MaxValueValidator(6)],
+        help_text="Nur für die Regel „Einheitspreis auf n Stellen“.",
+    )
+    reihenfolge = models.PositiveSmallIntegerField("Reihenfolge", default=0)
+
+    objects = WohnungsdatenQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "Abrechnungsbereich"
+        verbose_name_plural = "Abrechnungsbereiche"
+        ordering = ["reihenfolge", "id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(gesamtmenge__isnull=True) | Q(gesamtmenge__gt=0),
+                name="bereich_gesamtmenge_positiv",
+                violation_error_message="Die Gesamtmenge muss größer als 0 sein.",
+            ),
+            models.CheckConstraint(
+                condition=Q(anteil_menge__isnull=True) | Q(anteil_menge__gte=0),
+                name="bereich_anteil_nicht_negativ",
+                violation_error_message="Der Anteil darf nicht negativ sein.",
+            ),
+            models.CheckConstraint(
+                condition=Q(nachkommastellen__lte=6),
+                name="bereich_nachkommastellen_max_6",
+                violation_error_message="Höchstens 6 Nachkommastellen.",
+            ),
+        ]
+
+    def __str__(self):
+        return self.bezeichnung
+
+    @property
+    def ist_direkt(self):
+        return self.verteilerschluessel == self.Verteilerschluessel.DIREKT
+
+    def clean(self):
+        if self.ist_direkt:
+            return
+        fehler = {}
+        if self.gesamtmenge is None:
+            fehler["gesamtmenge"] = "Für diesen Verteilerschlüssel ist eine Gesamtmenge nötig."
+        if self.anteil_menge is None:
+            fehler["anteil_menge"] = "Für diesen Verteilerschlüssel ist der Anteil nötig."
+        if (
+            self.gesamtmenge is not None
+            and self.anteil_menge is not None
+            and self.anteil_menge > self.gesamtmenge
+        ):
+            fehler["anteil_menge"] = "Der Anteil ist größer als die Gesamtmenge."
+        if fehler:
+            raise ValidationError(fehler)
+
+
+class Kostenposition(models.Model):
+    """Kosten einer Kostenart in einem Bereich.
+
+    Bei Verteilerschlüssel „direkt“ ist das der Betrag der Wohnung, sonst die
+    Gesamtkosten des Hauses.
+    """
+
+    WOHNUNG_PFAD = "bereich__abrechnung__wohnung"
+
+    bereich = models.ForeignKey(
+        Abrechnungsbereich,
+        on_delete=models.CASCADE,
+        related_name="positionen",
+        verbose_name="Bereich",
+    )
+    kostenart = models.ForeignKey(
+        Kostenart, on_delete=models.PROTECT, related_name="positionen", verbose_name="Kostenart"
+    )
+    betrag = models.DecimalField("Betrag (€)", **GELD)
+    notiz = models.CharField("Notiz", max_length=500, blank=True)
+
+    objects = WohnungsdatenQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "Kostenposition"
+        verbose_name_plural = "Kostenpositionen"
+        ordering = ["kostenart__name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["bereich", "kostenart"],
+                name="kostenposition_eindeutig",
+                violation_error_message="Diese Kostenart gibt es in dem Bereich schon.",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.kostenart}: {self.betrag} €"
+
+
+class Vorauszahlung(models.Model):
+    WOHNUNG_PFAD = "abrechnung__wohnung"
+
+    abrechnung = models.ForeignKey(
+        Abrechnung,
+        on_delete=models.CASCADE,
+        related_name="vorauszahlungen",
+        verbose_name="Abrechnung",
+    )
+    bereich = models.ForeignKey(
+        Abrechnungsbereich,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="vorauszahlungen",
+        verbose_name="Bereich",
+    )
+    bezeichnung = models.CharField("Bezeichnung", max_length=200)
+    betrag = models.DecimalField("Betrag (€)", **GELD)
+
+    objects = WohnungsdatenQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "Vorauszahlung"
+        verbose_name_plural = "Vorauszahlungen"
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.bezeichnung}: {self.betrag} €"
+
+    def clean(self):
+        if self.bereich_id and self.bereich.abrechnung_id != self.abrechnung_id:
+            raise ValidationError({"bereich": "Der Bereich gehört zu einer anderen Abrechnung."})
+
+
+class Zusatzfeld(models.Model):
+    """Frei definierbares Feld einer Wohnung, z. B. Ablesewert eines Heizkostenverteilers."""
+
+    WOHNUNG_PFAD = "wohnung"
+
+    class Typ(models.TextChoices):
+        ZAHL = "zahl", "Zahl"
+        TEXT = "text", "Text"
+        DATUM = "datum", "Datum"
+
+    wohnung = models.ForeignKey(
+        Wohnung, on_delete=models.CASCADE, related_name="zusatzfelder", verbose_name="Wohnung"
+    )
+    name = models.CharField("Name", max_length=200)
+    typ = models.CharField("Typ", max_length=10, choices=Typ, default=Typ.ZAHL)
+    einheit = models.CharField("Einheit", max_length=50, blank=True)
+    reihenfolge = models.PositiveSmallIntegerField("Reihenfolge", default=0)
+
+    objects = WohnungsdatenQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "Zusatzfeld"
+        verbose_name_plural = "Zusatzfelder"
+        ordering = ["reihenfolge", "name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["wohnung", "name"],
+                name="zusatzfeld_eindeutig",
+                violation_error_message="Ein Feld mit diesem Namen gibt es schon.",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.einheit})" if self.einheit else self.name
+
+
+class Zusatzwert(models.Model):
+    WOHNUNG_PFAD = "abrechnung__wohnung"
+
+    abrechnung = models.ForeignKey(
+        Abrechnung, on_delete=models.CASCADE, related_name="zusatzwerte", verbose_name="Abrechnung"
+    )
+    feld = models.ForeignKey(
+        Zusatzfeld, on_delete=models.CASCADE, related_name="werte", verbose_name="Feld"
+    )
+    wert_zahl = models.DecimalField("Zahl", null=True, blank=True, **MENGE)
+    wert_text = models.TextField("Text", blank=True)
+    wert_datum = models.DateField("Datum", null=True, blank=True)
+
+    objects = WohnungsdatenQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "Zusatzwert"
+        verbose_name_plural = "Zusatzwerte"
+        ordering = ["feld__reihenfolge", "feld__name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["abrechnung", "feld"],
+                name="zusatzwert_eindeutig",
+                violation_error_message="Für dieses Feld gibt es schon einen Wert.",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.feld.name}: {self.wert}"
+
+    @property
+    def wert(self):
+        return {
+            Zusatzfeld.Typ.ZAHL: self.wert_zahl,
+            Zusatzfeld.Typ.TEXT: self.wert_text,
+            Zusatzfeld.Typ.DATUM: self.wert_datum,
+        }[self.feld.typ]
+
+    def clean(self):
+        if not (self.feld_id and self.abrechnung_id):
+            return
+        if self.feld.wohnung_id != self.abrechnung.wohnung_id:
+            raise ValidationError({"feld": "Das Feld gehört zu einer anderen Wohnung."})
+        belegt = {
+            Zusatzfeld.Typ.ZAHL: self.wert_zahl is not None,
+            Zusatzfeld.Typ.TEXT: bool(self.wert_text),
+            Zusatzfeld.Typ.DATUM: self.wert_datum is not None,
+        }
+        fremd = [typ for typ, gesetzt in belegt.items() if gesetzt and typ != self.feld.typ]
+        if fremd:
+            raise ValidationError(
+                f"Das Feld „{self.feld.name}“ erwartet den Typ {self.feld.get_typ_display()}."
+            )

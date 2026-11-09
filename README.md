@@ -42,6 +42,27 @@ Die App läuft dann unter <http://localhost:8000/>, die Verwaltung unter `/admin
 (solange die Registrierung geschlossen ist). Die E-Mail-Adresse des eigenen SSO Servers gilt
 als vertrauenswürdig; abschalten mit `OIDC_EMAIL_VERTRAUEN=False`.
 
+## Datenmodell
+
+- **Wohnung** mit **Mitgliedschaften** (Rolle „Verwalten“ oder „Nur lesen“). Jede Abfrage
+  auf Wohnungsdaten läuft über `objects.fuer_nutzer(nutzer)` bzw. `verwaltbar_fuer(nutzer)`.
+- **Abrechnung** (Jahr, Zeitraum) → **Abrechnungsbereiche** mit Verteilerschlüssel
+  (Wohnfläche, Punkte/Einheiten, Personen, Wohneinheiten oder direkter Betrag) und
+  Rundungsregel → **Kostenpositionen** je Kostenart. Dazu **Vorauszahlungen**.
+- **Kostenarten** und **Zusatzfelder** sind Daten: Neue legt man an, ohne Migration.
+  Die Kostenarten nach § 2 BetrKV sind vorbelegt.
+
+Die Nachrechnung steht in `mieter/abrechnungen/berechnung.py`, nur mit `Decimal` und
+`ROUND_HALF_UP`. Rundungsregeln pro Bereich:
+
+| Regel | Rechnung |
+|---|---|
+| wie Vermieter | Einheitspreis auf 2 Stellen runden, × Anteil, Ergebnis auf Cent |
+| n Stellen | wie oben, Einheitspreis auf n Stellen |
+| exakt | keine Zwischenrundung, nur das Ergebnis auf Cent |
+
+Die exakte Rechnung ohne jede Rundung wird immer mitgeführt.
+
 ## Hintergrundaufgaben
 
 Längere Arbeiten laufen über [Procrastinate](https://procrastinate.readthedocs.io/) mit der

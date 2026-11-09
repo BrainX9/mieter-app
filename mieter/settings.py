@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "mieter.konten",
     "mieter.kern",
     "mieter.jobs",
+    "mieter.abrechnungen",
 ]
 
 MIDDLEWARE = [
