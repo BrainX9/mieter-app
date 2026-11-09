@@ -17,7 +17,7 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --locked
       - run: uv run ruff check .
@@ -44,7 +44,7 @@ jobs:
       SECRET_KEY: nur-fuer-ci-nicht-geheim
       DATABASE_URL: postgres://mieter:mieter-ci@localhost:5432/mieter
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
       - run: uv sync --locked
       - run: uv run python manage.py check
@@ -55,7 +55,7 @@ jobs:
     name: Secrets (gitleaks)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       # Gleiche Version wie in .pre-commit-config.yaml. Der pre-commit-Hook prüft nur
@@ -63,10 +63,12 @@ jobs:
       - name: gitleaks installieren
         env:
           GITLEAKS_VERSION: "8.30.0"
+          # sha256 von gitleaks_8.30.0_linux_x64.tar.gz (aus der checksums.txt des Releases)
+          GITLEAKS_SHA256: 79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e
         run: |
-          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
           datei="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          curl -sSfLO "${base}/${datei}"
-          curl -sSfL "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt" | grep " ${datei}$" | sha256sum -c -
+          curl -sSfL --retry 5 --retry-all-errors -o "${datei}" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${datei}"
+          echo "${GITLEAKS_SHA256}  ${datei}" | sha256sum -c -
           tar -xzf "${datei}" gitleaks
       - run: ./gitleaks git --redact --verbose .
