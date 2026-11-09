@@ -9,9 +9,11 @@ from django.contrib import admin
 from .models import (
     Abrechnung,
     Abrechnungsbereich,
+    Brennstoffbezug,
     Kostenart,
     Kostenposition,
     Mitgliedschaft,
+    Raumverbrauch,
     Verteilerschluessel,
     Vorauszahlung,
     Wohnung,
@@ -56,8 +58,8 @@ class WohnungAdmin(NurEigeneWohnungenMixin, admin.ModelAdmin):
 
 @admin.register(Kostenart)
 class KostenartAdmin(admin.ModelAdmin):
-    list_display = ["name", "betrkv_nummer", "schluessel", "aktiv"]
-    list_filter = ["aktiv"]
+    list_display = ["name", "betrkv_nummer", "schluessel", "brennstoffangaben", "aktiv"]
+    list_filter = ["aktiv", "brennstoffangaben"]
     search_fields = ["name"]
 
     @admin.display(description="Verteilerschlüssel")
@@ -100,3 +102,21 @@ class AbrechnungsbereichAdmin(NurEigeneWohnungenMixin, admin.ModelAdmin):
     list_display = ["bezeichnung", "abrechnung", "verteilerschluessel", "rundungsregel"]
     list_filter = ["verteilerschluessel", "rundungsregel"]
     inlines = [KostenpositionInline]
+
+
+class BrennstoffbezugInline(NurEigeneWohnungenMixin, admin.TabularInline):
+    model = Brennstoffbezug
+    extra = 0
+
+
+class RaumverbrauchInline(NurEigeneWohnungenMixin, admin.TabularInline):
+    model = Raumverbrauch
+    extra = 0
+
+
+@admin.register(Kostenposition)
+class KostenpositionAdmin(NurEigeneWohnungenMixin, admin.ModelAdmin):
+    list_display = ["__str__", "kostenart", "bereich"]
+    list_filter = ["kostenart"]
+    autocomplete_fields = ["kostenart"]
+    inlines = [BrennstoffbezugInline, RaumverbrauchInline]

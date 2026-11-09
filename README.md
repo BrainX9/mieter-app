@@ -51,6 +51,8 @@ als vertrauenswürdig; abschalten mit `OIDC_EMAIL_VERTRAUEN=False`.
   dort; das Ergebnis aktualisiert sich sofort. Ohne JavaScript funktioniert dasselbe mit
   Neuladen.
 - Zahlen gibt man deutsch ein (`1.234,56`), Beträge erscheinen als `1.234,56 €`.
+- Beim Anlegen eines Bereichs erklärt das Formular je Verteilerschlüssel, was als
+  Gesamtmenge und Anteil einzutragen ist, und zeigt die Rundungsregeln an einem Beispiel.
 - Wer eine Wohnung anlegt, verwaltet sie. Weitere Mitglieder (auch „Nur lesen“) und
   Zusatzfelder trägt man vorerst im Admin ein.
 
@@ -65,6 +67,11 @@ als vertrauenswürdig; abschalten mit `OIDC_EMAIL_VERTRAUEN=False`.
   Die Kostenarten nach § 2 BetrKV sind vorbelegt, jeweils mit passenden
   Verteilerschlüsseln und einem Hinweis. Im Bereich stehen nur Kostenarten zur Auswahl,
   die zu seinem Schlüssel passen. Kostenarten ohne Schlüssel passen überall.
+- **Umlage individuell:** Jede Umlage hat Name, Art (Kostenart) und Gesamtbetrag und eine
+  eigene Detailseite mit **Verbrauchseinheiten je Raum** (Raum, Gerätenummer, Einheiten).
+  Bei Kostenarten „mit Brennstoff-/Energiekosten“ (Heizung, Heizung und Warmwasser) kommen
+  **Brennstoff-Bezüge** dazu: Bezugsdatum, Menge in kWh, Betrag, Vermieteranteil
+  CO₂-Kosten; die Summe Brennstoff-/Energiekosten rechnet die App aus.
 
 Die Nachrechnung steht in `mieter/abrechnungen/berechnung.py`, nur mit `Decimal` und
 `ROUND_HALF_UP`. Rundungsregeln pro Bereich:

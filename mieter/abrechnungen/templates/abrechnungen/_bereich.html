@@ -18,26 +18,32 @@
   </header>
   <div class="overflow-auto">
     <table>
-      <thead><tr><th>Kostenart</th><th>Notiz</th><th class="zahl">{% if bereich.ist_individuell %}Betrag der Wohnung{% else %}Gesamtkosten{% endif %}</th>{% if darf_verwalten %}<th></th>{% endif %}</tr></thead>
+      <thead><tr>{% if bereich.ist_individuell %}<th>Name</th><th>Art</th><th class="zahl">Gesamtbetrag</th>{% else %}<th>Kostenart</th><th>Notiz</th><th class="zahl">Gesamtkosten</th>{% endif %}{% if darf_verwalten %}<th></th>{% endif %}</tr></thead>
       <tbody>
         {% for position in bereich.positionen.all %}
           <tr>
-            <td>{{ position.kostenart }}{% if position.kostenart.hinweis %}<br><small class="erlaeuterung">{{ position.kostenart.hinweis }}</small>{% endif %}</td>
-            <td>{{ position.notiz }}</td>
+            {% if bereich.ist_individuell %}
+              <td><a href="{{ position.get_absolute_url }}">{{ position.name }}</a>{% if position.notiz %}<br><small>{{ position.notiz }}</small>{% endif %}</td>
+              <td>{{ position.kostenart }}</td>
+            {% else %}
+              <td>{{ position.kostenart }}{% if position.kostenart.hinweis %}<br><small class="erlaeuterung">{{ position.kostenart.hinweis }}</small>{% endif %}</td>
+              <td>{{ position.notiz }}</td>
+            {% endif %}
             <td class="zahl">{{ position.betrag|euro }}</td>
             {% if darf_verwalten %}
               <td class="aktion">
                 <form method="post" action="{% url 'position_loeschen' position.pk %}"
                       hx-post="{% url 'position_loeschen' position.pk %}" hx-target="#bereich-{{ bereich.pk }}" hx-swap="outerHTML"
-                      hx-confirm="„{{ position.kostenart }}“ entfernen?">
+                      hx-confirm="„{{ position.name }}“ entfernen?">
                   {% csrf_token %}
-                  <button type="submit" class="secondary outline klein" aria-label="{{ position.kostenart }} entfernen">Entfernen</button>
+                  {% if bereich.ist_individuell %}<a href="{{ position.get_absolute_url }}" class="secondary klein">Details</a>{% endif %}
+                  <button type="submit" class="secondary outline klein" aria-label="{{ position.name }} entfernen">Entfernen</button>
                 </form>
               </td>
             {% endif %}
           </tr>
         {% empty %}
-          <tr><td colspan="4"><small>Noch keine Kosten erfasst.</small></td></tr>
+          <tr><td colspan="4"><small>{% if bereich.ist_individuell %}Noch keine Umlage erfasst. Details wie Brennstoff-Bezüge und Verbrauch je Raum trägst du danach über „Details“ ein.{% else %}Noch keine Kosten erfasst.{% endif %}</small></td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -48,11 +54,12 @@
       {% csrf_token %}
       {{ form.non_field_errors }}
       <fieldset class="grid">
+        {% if form.bezeichnung %}<label>{{ form.bezeichnung.label }}{{ form.bezeichnung }}</label>{% endif %}
         <label>{{ form.kostenart.label }}{{ form.kostenart }}{% for f in form.kostenart.errors %}<small class="fehler">{{ f }}</small>{% endfor %}</label>
         <label>{{ form.betrag.label }}{{ form.betrag }}{% for f in form.betrag.errors %}<small class="fehler">{{ f }}</small>{% endfor %}</label>
         <label>{{ form.notiz.label }}{{ form.notiz }}</label>
       </fieldset>
-      <button type="submit" class="outline">Kosten hinzufügen</button>
+      <button type="submit" class="outline">{% if bereich.ist_individuell %}Umlage hinzufügen{% else %}Kosten hinzufügen{% endif %}</button>
     </form>
   {% endif %}
 </article>

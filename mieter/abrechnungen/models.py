@@ -158,6 +158,11 @@ class Kostenart(models.Model):
         blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(17)],
     )
+    brennstoffangaben = models.BooleanField(
+        "Mit Brennstoff-/Energiekosten",
+        default=False,
+        help_text="Bei individueller Umlage lassen sich Brennstoff-Bezüge mit CO₂-Kosten erfassen.",
+    )
     aktiv = models.BooleanField("Aktiv", default=True)
 
     objects = KostenartQuerySet.as_manager()
@@ -331,6 +336,12 @@ class Kostenposition(models.Model):
     kostenart = models.ForeignKey(
         Kostenart, on_delete=models.PROTECT, related_name="positionen", verbose_name="Kostenart"
     )
+    bezeichnung = models.CharField(
+        "Name",
+        max_length=200,
+        blank=True,
+        help_text="Für individuelle Umlagen, z. B. „Heizkostenabrechnung Messdienst“.",
+    )
     betrag = models.DecimalField("Betrag (€)", **GELD)
     notiz = models.CharField("Notiz", max_length=500, blank=True)
 
@@ -349,7 +360,93 @@ class Kostenposition(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.kostenart}: {self.betrag} €"
+        return f"{self.name}: {self.betrag} €"
+
+    def get_absolute_url(self):
+        return reverse("position_detail", args=[self.pk])
+
+    @property
+    def name(self):
+        """Eigener Name, sonst die Kostenart."""
+        return self.bezeichnung or self.kostenart.name
+
+    @property
+    def zeigt_brennstoff(self):
+        return self.kostenart.brennstoffangaben or self.brennstoffbezuege.exists()
+
+
+class Brennstoffbezug(models.Model):
+    """Bezug von Brennstoff oder Energie zu einer individuellen Umlage (Heizung)."""
+
+    WOHNUNG_PFAD = "position__bereich__abrechnung__wohnung"
+
+    position = models.ForeignKey(
+        Kostenposition,
+        on_delete=models.CASCADE,
+        related_name="brennstoffbezuege",
+        verbose_name="Umlage",
+    )
+    bezugsdatum = models.DateField("Bezugsdatum")
+    menge_kwh = models.DecimalField("Menge (kWh)", validators=[MinValueValidator(0)], **MENGE)
+    betrag = models.DecimalField("Betrag (€)", validators=[MinValueValidator(0)], **GELD)
+    vermieteranteil_co2 = models.DecimalField(
+        "Vermieteranteil CO₂-Kosten (€)",
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Anteil der CO₂-Kosten, den der Vermieter trägt.",
+        **GELD,
+    )
+
+    objects = WohnungsdatenQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "Brennstoff-Bezug"
+        verbose_name_plural = "Brennstoff-Bezüge"
+        ordering = ["bezugsdatum", "id"]
+
+    def __str__(self):
+        return f"{self.bezugsdatum:%d.%m.%Y}: {self.menge_kwh} kWh"
+
+    @property
+    def brennstoffkosten(self):
+        """Summe Brennstoff-/Energiekosten: Betrag minus Vermieteranteil CO₂-Kosten."""
+        return self.betrag - self.vermieteranteil_co2
+
+    def clean(self):
+        if (
+            self.betrag is not None
+            and self.vermieteranteil_co2 is not None
+            and self.vermieteranteil_co2 > self.betrag
+        ):
+            raise ValidationError(
+                {"vermieteranteil_co2": "Der Vermieteranteil ist größer als der Betrag."}
+            )
+
+
+class Raumverbrauch(models.Model):
+    """Verbrauchseinheiten eines Raums, z. B. abgelesen am Heizkostenverteiler."""
+
+    WOHNUNG_PFAD = "position__bereich__abrechnung__wohnung"
+
+    position = models.ForeignKey(
+        Kostenposition,
+        on_delete=models.CASCADE,
+        related_name="raumverbraeuche",
+        verbose_name="Umlage",
+    )
+    raum = models.CharField("Raum", max_length=100)
+    geraetenummer = models.CharField("Gerätenummer", max_length=100, blank=True)
+    einheiten = models.DecimalField("Einheiten", validators=[MinValueValidator(0)], **MENGE)
+
+    objects = WohnungsdatenQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "Verbrauch je Raum"
+        verbose_name_plural = "Verbrauch je Raum"
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.raum}: {self.einheiten}"
 
 
 class Vorauszahlung(models.Model):

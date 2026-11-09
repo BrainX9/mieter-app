@@ -49,6 +49,8 @@ class BereichEingabe:
     gesamtmenge: Decimal | None = None
     anteil_menge: Decimal | None = None
     nachkommastellen: int = 2
+    # Name und Betrag je Umlage, nur zur Anzeige in der Übersicht (individuelle Umlage).
+    posten: tuple[tuple[str, Decimal], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -64,6 +66,7 @@ class Bereichsergebnis:
     anteil_exakt: Decimal | None
     anteil: Decimal | None
     fehler: str | None = None
+    posten: tuple[tuple[str, Decimal], ...] = ()
 
     @property
     def vollstaendig(self) -> bool:
@@ -152,6 +155,7 @@ def bereich_berechnen(eingabe: BereichEingabe) -> Bereichsergebnis:
             "kosten": kosten,
             "gesamtmenge": eingabe.gesamtmenge,
             "anteil_menge": eingabe.anteil_menge,
+            "posten": eingabe.posten,
         }
 
         if eingabe.verteilerschluessel == INDIVIDUELL:
@@ -223,8 +227,11 @@ def abrechnung_berechnen(abrechnung) -> Abrechnungsergebnis:
             gesamtmenge=b.gesamtmenge,
             anteil_menge=b.anteil_menge,
             nachkommastellen=b.nachkommastellen,
+            posten=tuple((p.name, p.betrag) for p in b.positionen.all())
+            if b.verteilerschluessel == INDIVIDUELL
+            else (),
         )
-        for b in abrechnung.bereiche.prefetch_related("positionen")
+        for b in abrechnung.bereiche.prefetch_related("positionen__kostenart")
     ]
     vorauszahlungen = [v.betrag for v in abrechnung.vorauszahlungen.all()]
     return berechnen(bereiche, vorauszahlungen)

@@ -11,6 +11,8 @@ Ohne JavaScript funktionieren dieselben Formulare mit normalem Neuladen.
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import Sum
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -19,15 +21,19 @@ from . import hilfe
 from .forms import (
     AbrechnungForm,
     AbrechnungsbereichForm,
+    BrennstoffbezugForm,
     KostenpositionForm,
+    RaumverbrauchForm,
     VorauszahlungForm,
     WohnungForm,
 )
 from .models import (
     Abrechnung,
     Abrechnungsbereich,
+    Brennstoffbezug,
     Kostenposition,
     Mitgliedschaft,
+    Raumverbrauch,
     Vorauszahlung,
     Wohnung,
 )
@@ -308,3 +314,103 @@ def vorauszahlung_loeschen(request, pk):
     abrechnung = vorauszahlung.abrechnung
     vorauszahlung.delete()
     return _vorauszahlungen_antwort(request, abrechnung)
+
+
+# Individuelle Umlage: eigene Seite mit Brennstoff-Bezügen und Verbrauch je Raum.
+# Die Formulare dort laden per HTMX nur ihren Abschnitt neu (hx-select), ohne JavaScript
+# die ganze Seite.
+
+
+def _umlage(position):
+    if not position.bereich.ist_individuell:
+        raise Http404("Details gibt es nur für individuelle Umlagen.")
+    return position
+
+
+def _umlage_seite(request, position, form=None, brennstoff_form=None, raum_form=None):
+    darf = _darf_verwalten(position.bereich.abrechnung.wohnung, request.user)
+    if darf:
+        form = form or KostenpositionForm(instance=position)
+        brennstoff_form = brennstoff_form or BrennstoffbezugForm(
+            instance=Brennstoffbezug(position=position)
+        )
+        raum_form = raum_form or RaumverbrauchForm(instance=Raumverbrauch(position=position))
+    bezuege = position.brennstoffbezuege.all()
+    summen = bezuege.aggregate(
+        menge=Sum("menge_kwh"), betrag=Sum("betrag"), co2=Sum("vermieteranteil_co2")
+    )
+    if summen["betrag"] is not None:
+        summen["brennstoffkosten"] = summen["betrag"] - summen["co2"]
+    raeume = position.raumverbraeuche.all()
+    return render(
+        request,
+        "abrechnungen/umlage_detail.html",
+        {
+            "position": position,
+            "bereich": position.bereich,
+            "abrechnung": position.bereich.abrechnung,
+            "wohnung": position.bereich.abrechnung.wohnung,
+            "darf_verwalten": darf,
+            "form": form,
+            "brennstoff_form": brennstoff_form,
+            "raum_form": raum_form,
+            "brennstoffbezuege": bezuege,
+            "summen": summen,
+            "raeume": raeume,
+            "summe_einheiten": raeume.aggregate(summe=Sum("einheiten"))["summe"],
+        },
+    )
+
+
+def _zur_umlage(position, abschnitt=""):
+    return redirect(position.get_absolute_url() + (f"#{abschnitt}" if abschnitt else ""))
+
+
+def position_detail(request, pk):
+    position = _umlage(_lesen(Kostenposition, request, pk))
+    return _umlage_seite(request, position)
+
+
+@require_POST
+def position_bearbeiten(request, pk):
+    position = _umlage(_schreiben(Kostenposition, request, pk))
+    form = KostenpositionForm(request.POST, instance=position)
+    if form.is_valid():
+        form.save()
+        messages.success(request, "Umlage gespeichert.")
+        return _zur_umlage(position)
+    return _umlage_seite(request, position, form=form)
+
+
+@require_POST
+def brennstoff_neu(request, position_pk):
+    position = _umlage(_schreiben(Kostenposition, request, position_pk))
+    form = BrennstoffbezugForm(request.POST, instance=Brennstoffbezug(position=position))
+    if form.is_valid():
+        form.save()
+        return _zur_umlage(position, "brennstoff")
+    return _umlage_seite(request, position, brennstoff_form=form)
+
+
+@require_POST
+def brennstoff_loeschen(request, pk):
+    bezug = _schreiben(Brennstoffbezug, request, pk)
+    bezug.delete()
+    return _zur_umlage(bezug.position, "brennstoff")
+
+
+@require_POST
+def raum_neu(request, position_pk):
+    position = _umlage(_schreiben(Kostenposition, request, position_pk))
+    form = RaumverbrauchForm(request.POST, instance=Raumverbrauch(position=position))
+    if form.is_valid():
+        form.save()
+        return _zur_umlage(position, "raeume")
+    return _umlage_seite(request, position, raum_form=form)
+
+
+@require_POST
+def raum_loeschen(request, pk):
+    raum = _schreiben(Raumverbrauch, request, pk)
+    raum.delete()
+    return _zur_umlage(raum.position, "raeume")
