@@ -23,7 +23,17 @@ urlpatterns = [
     path("bereiche/<int:pk>/bearbeiten/", views.bereich_bearbeiten, name="bereich_bearbeiten"),
     path("bereiche/<int:pk>/loeschen/", views.bereich_loeschen, name="bereich_loeschen"),
     path("bereiche/<int:bereich_pk>/positionen/neu/", views.position_neu, name="position_neu"),
+    path("positionen/<int:pk>/", views.position_detail, name="position_detail"),
+    path("positionen/<int:pk>/bearbeiten/", views.position_bearbeiten, name="position_bearbeiten"),
     path("positionen/<int:pk>/loeschen/", views.position_loeschen, name="position_loeschen"),
+    path(
+        "positionen/<int:position_pk>/brennstoff/neu/",
+        views.brennstoff_neu,
+        name="brennstoff_neu",
+    ),
+    path("brennstoff/<int:pk>/loeschen/", views.brennstoff_loeschen, name="brennstoff_loeschen"),
+    path("positionen/<int:position_pk>/raeume/neu/", views.raum_neu, name="raum_neu"),
+    path("raeume/<int:pk>/loeschen/", views.raum_loeschen, name="raum_loeschen"),
     path(
         "abrechnungen/<int:abrechnung_pk>/vorauszahlungen/neu/",
         views.vorauszahlung_neu,

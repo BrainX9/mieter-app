@@ -13,7 +13,7 @@
         <tbody>
           {% for b in ergebnis.bereiche %}
             <tr>
-              <td>{{ b.bezeichnung }}</td>
+              <td>{{ b.bezeichnung }}{% for name, betrag in b.posten %}<br><small>{{ name }}: {{ betrag|euro }}</small>{% endfor %}</td>
               <td class="zahl">{{ b.kosten|euro }}</td>
               <td class="zahl">
                 {% if b.einheitspreis is not None %}

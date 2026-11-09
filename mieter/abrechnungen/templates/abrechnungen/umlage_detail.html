@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% load format %}
+{% block head_title %}{{ position.name }}{% endblock head_title %}
+{% block content %}
+  <nav aria-label="breadcrumb">
+    <ul>
+      <li><a href="{% url 'startseite' %}">Wohnungen</a></li>
+      <li><a href="{{ wohnung.get_absolute_url }}">{{ wohnung }}</a></li>
+      <li><a href="{{ abrechnung.get_absolute_url }}#bereich-{{ bereich.pk }}">{{ abrechnung.abrechnungsjahr }} · {{ bereich }}</a></li>
+      <li>{{ position.name }}</li>
+    </ul>
+  </nav>
+
+  <div class="kopf">
+    <hgroup>
+      <h1>{{ position.name }}</h1>
+      <p>Umlage individuell · {{ position.kostenart }} · <strong>{{ position.betrag|euro }}</strong></p>
+    </hgroup>
+  </div>
+  {% if position.kostenart.hinweis %}<p class="erlaeuterung">{{ position.kostenart.hinweis }}</p>{% endif %}
+
+  {% if darf_verwalten %}
+    <article>
+      <header><strong>Angaben</strong> · Name und Gesamtbetrag erscheinen in der Übersicht der Abrechnung.</header>
+      <form method="post" action="{% url 'position_bearbeiten' position.pk %}" novalidate>
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <fieldset class="grid">
+          <div>{% include "abrechnungen/_feld.html" with feld=form.bezeichnung %}</div>
+          <div>{% include "abrechnungen/_feld.html" with feld=form.kostenart %}</div>
+          <div>{% include "abrechnungen/_feld.html" with feld=form.betrag %}</div>
+        </fieldset>
+        {% include "abrechnungen/_feld.html" with feld=form.notiz %}
+        <button type="submit">Speichern</button>
+      </form>
+    </article>
+  {% elif position.notiz %}
+    <p>{{ position.notiz }}</p>
+  {% endif %}
+
+  {% if position.zeigt_brennstoff %}
+    <section id="brennstoff">
+      <h2>Brennstoff-/Energiekosten</h2>
+      <article>
+        <div class="overflow-auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Bezugsdatum</th><th class="zahl">Menge</th><th class="zahl">Betrag</th>
+                <th class="zahl">Vermieteranteil CO₂-Kosten</th><th class="zahl">Summe Brennstoff-/Energiekosten</th>
+                {% if darf_verwalten %}<th></th>{% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for b in brennstoffbezuege %}
+                <tr>
+                  <td>{{ b.bezugsdatum|date:"d.m.Y" }}</td>
+                  <td class="zahl">{{ b.menge_kwh|zahl }} kWh</td>
+                  <td class="zahl">{{ b.betrag|euro }}</td>
+                  <td class="zahl">{{ b.vermieteranteil_co2|euro }}</td>
+                  <td class="zahl"><strong>{{ b.brennstoffkosten|euro }}</strong></td>
+                  {% if darf_verwalten %}
+                    <td class="aktion">
+                      <form method="post" action="{% url 'brennstoff_loeschen' b.pk %}"
+                            hx-post="{% url 'brennstoff_loeschen' b.pk %}" hx-target="#brennstoff" hx-select="#brennstoff" hx-swap="outerHTML"
+                            hx-confirm="Bezug vom {{ b.bezugsdatum|date:'d.m.Y' }} entfernen?">
+                        {% csrf_token %}
+                        <button type="submit" class="secondary outline klein" aria-label="Bezug vom {{ b.bezugsdatum|date:'d.m.Y' }} entfernen">Entfernen</button>
+                      </form>
+                    </td>
+                  {% endif %}
+                </tr>
+              {% empty %}
+                <tr><td colspan="6"><small>Noch keine Bezüge erfasst.</small></td></tr>
+              {% endfor %}
+            </tbody>
+            {% if brennstoffbezuege %}
+              <tfoot>
+                <tr>
+                  <th>Summe</th>
+                  <td class="zahl">{{ summen.menge|zahl }} kWh</td>
+                  <td class="zahl">{{ summen.betrag|euro }}</td>
+                  <td class="zahl">{{ summen.co2|euro }}</td>
+                  <td class="zahl"><strong>{{ summen.brennstoffkosten|euro }}</strong></td>
+                  {% if darf_verwalten %}<td></td>{% endif %}
+                </tr>
+              </tfoot>
+            {% endif %}
+          </table>
+        </div>
+        <small class="erlaeuterung">Summe Brennstoff-/Energiekosten = Betrag minus Vermieteranteil CO₂-Kosten.</small>
+        {% if darf_verwalten %}
+          {% with form=brennstoff_form %}
+            <form method="post" action="{% url 'brennstoff_neu' position.pk %}" class="zeile" novalidate
+                  hx-post="{% url 'brennstoff_neu' position.pk %}" hx-target="#brennstoff" hx-select="#brennstoff" hx-swap="outerHTML">
+              {% csrf_token %}
+              {{ form.non_field_errors }}
+              <fieldset class="grid">
+                <div>{% include "abrechnungen/_feld.html" with feld=form.bezugsdatum %}</div>
+                <div>{% include "abrechnungen/_feld.html" with feld=form.menge_kwh %}</div>
+                <div>{% include "abrechnungen/_feld.html" with feld=form.betrag %}</div>
+                <div>{% include "abrechnungen/_feld.html" with feld=form.vermieteranteil_co2 %}</div>
+              </fieldset>
+              <button type="submit" class="outline">Bezug hinzufügen</button>
+            </form>
+          {% endwith %}
+        {% endif %}
+      </article>
+    </section>
+  {% endif %}
+
+  <section id="raeume">
+    <h2>Verbrauchseinheiten je Raum</h2>
+    <article>
+      <div class="overflow-auto">
+        <table>
+          <thead><tr><th>Raum</th><th>Gerätenummer</th><th class="zahl">Einheiten</th>{% if darf_verwalten %}<th></th>{% endif %}</tr></thead>
+          <tbody>
+            {% for r in raeume %}
+              <tr>
+                <td>{{ r.raum }}</td>
+                <td>{{ r.geraetenummer }}</td>
+                <td class="zahl">{{ r.einheiten|zahl }}</td>
+                {% if darf_verwalten %}
+                  <td class="aktion">
+                    <form method="post" action="{% url 'raum_loeschen' r.pk %}"
+                          hx-post="{% url 'raum_loeschen' r.pk %}" hx-target="#raeume" hx-select="#raeume" hx-swap="outerHTML"
+                          hx-confirm="„{{ r.raum }}“ entfernen?">
+                      {% csrf_token %}
+                      <button type="submit" class="secondary outline klein" aria-label="{{ r.raum }} entfernen">Entfernen</button>
+                    </form>
+                  </td>
+                {% endif %}
+              </tr>
+            {% empty %}
+              <tr><td colspan="4"><small>Noch keine Räume erfasst, z. B. die Werte der Heizkostenverteiler.</small></td></tr>
+            {% endfor %}
+          </tbody>
+          {% if raeume %}
+            <tfoot><tr><th>Summe</th><td></td><td class="zahl"><strong>{{ summe_einheiten|zahl }}</strong></td>{% if darf_verwalten %}<td></td>{% endif %}</tr></tfoot>
+          {% endif %}
+        </table>
+      </div>
+      {% if darf_verwalten %}
+        {% with form=raum_form %}
+          <form method="post" action="{% url 'raum_neu' position.pk %}" class="zeile" novalidate
+                hx-post="{% url 'raum_neu' position.pk %}" hx-target="#raeume" hx-select="#raeume" hx-swap="outerHTML">
+            {% csrf_token %}
+            <fieldset class="grid">
+              <div>{% include "abrechnungen/_feld.html" with feld=form.raum %}</div>
+              <div>{% include "abrechnungen/_feld.html" with feld=form.geraetenummer %}</div>
+              <div>{% include "abrechnungen/_feld.html" with feld=form.einheiten %}</div>
+            </fieldset>
+            <button type="submit" class="outline">Raum hinzufügen</button>
+          </form>
+        {% endwith %}
+      {% endif %}
+    </article>
+  </section>
+
+  <p><a href="{{ abrechnung.get_absolute_url }}#bereich-{{ bereich.pk }}">← Zurück zur Abrechnung</a></p>
+{% endblock content %}

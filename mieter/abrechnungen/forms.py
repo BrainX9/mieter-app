@@ -13,8 +13,10 @@ from .hilfe import VORSCHLAG_BEZEICHNUNG
 from .models import (
     Abrechnung,
     Abrechnungsbereich,
+    Brennstoffbezug,
     Kostenart,
     Kostenposition,
+    Raumverbrauch,
     Vorauszahlung,
     Wohnung,
 )
@@ -133,17 +135,35 @@ class AbrechnungsbereichForm(LokalisierteZahlenMixin, forms.ModelForm):
 
 
 class KostenpositionForm(LokalisierteZahlenMixin, forms.ModelForm):
+    """Kosten eines Bereichs.
+
+    Im Bereich „Umlage individuell“ ist das eine individuelle Umlage: Name, Art (die
+    Kostenart) und Gesamtbetrag der Wohnung. Sonst Kostenart und Gesamtkosten des Hauses.
+    """
+
     class Meta:
         model = Kostenposition
-        fields = ["kostenart", "betrag", "notiz"]
+        fields = ["bezeichnung", "kostenart", "betrag", "notiz"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Nur Kostenarten, die zum Verteilerschlüssel des Bereichs passen.
-        self.fields["kostenart"].queryset = Kostenart.objects.filter(aktiv=True).passend_zu(
-            self.instance.bereich.verteilerschluessel
-        )
-        self.fields["kostenart"].empty_label = "Kostenart wählen …"
+        bereich = self.instance.bereich
+        # Nur Kostenarten, die zum Verteilerschlüssel des Bereichs passen. Die bisherige
+        # Kostenart bleibt wählbar, auch wenn sich der Schlüssel des Bereichs geändert hat.
+        passend = Kostenart.objects.filter(aktiv=True).passend_zu(bereich.verteilerschluessel)
+        if self.instance.kostenart_id:
+            passend = passend | Kostenart.objects.filter(pk=self.instance.kostenart_id)
+        kostenart = self.fields["kostenart"]
+        kostenart.queryset = passend.distinct()
+        if bereich.ist_individuell:
+            kostenart.label = "Art"
+            kostenart.empty_label = "Art wählen …"
+            self.fields["betrag"].label = "Gesamtbetrag (€)"
+            self.fields["bezeichnung"].widget.attrs["placeholder"] = "z. B. Heizkostenabrechnung"
+            self.fields["bezeichnung"].help_text = "Leer lassen für den Namen der Art."
+        else:
+            kostenart.empty_label = "Kostenart wählen …"
+            del self.fields["bezeichnung"]
 
     def clean_kostenart(self):
         kostenart = self.cleaned_data["kostenart"]
@@ -155,6 +175,22 @@ class KostenpositionForm(LokalisierteZahlenMixin, forms.ModelForm):
         if doppelt:
             raise forms.ValidationError("Diese Kostenart gibt es in dem Bereich schon.")
         return kostenart
+
+
+class BrennstoffbezugForm(LokalisierteZahlenMixin, forms.ModelForm):
+    class Meta:
+        model = Brennstoffbezug
+        fields = ["bezugsdatum", "menge_kwh", "betrag", "vermieteranteil_co2"]
+        widgets = {"bezugsdatum": DatumEingabe()}
+
+
+class RaumverbrauchForm(LokalisierteZahlenMixin, forms.ModelForm):
+    class Meta:
+        model = Raumverbrauch
+        fields = ["raum", "geraetenummer", "einheiten"]
+        widgets = {
+            "raum": forms.TextInput(attrs={"placeholder": "z. B. Wohnzimmer"}),
+        }
 
 
 class VorauszahlungForm(LokalisierteZahlenMixin, forms.ModelForm):
