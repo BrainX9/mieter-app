@@ -42,6 +42,19 @@ Die App läuft dann unter <http://localhost:8000/>, die Verwaltung unter `/admin
 (solange die Registrierung geschlossen ist). Die E-Mail-Adresse des eigenen SSO Servers gilt
 als vertrauenswürdig; abschalten mit `OIDC_EMAIL_VERTRAUEN=False`.
 
+## Hintergrundaufgaben
+
+Längere Arbeiten laufen über [Procrastinate](https://procrastinate.readthedocs.io/) mit der
+Warteschlange in PostgreSQL. Der Worker ist ein eigener Prozess neben `runserver`:
+
+```sh
+uv run python manage.py procrastinate worker        # Worker starten
+uv run python manage.py procrastinate healthchecks  # Verbindung und Migrationen prüfen
+```
+
+Aufgaben stehen in `tasks.py` der jeweiligen App. Täglich um 03:00 UTC löscht
+`jobs.alte_auftraege_aufraeumen` abgeschlossene Aufträge, die älter als 30 Tage sind.
+
 ## Konfiguration
 
 Alle Einstellungen kommen aus Umgebungsvariablen; eine `.env`-Datei im

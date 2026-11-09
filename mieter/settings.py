@@ -45,8 +45,10 @@ INSTALLED_APPS = [
     "allauth.account",
     "allauth.socialaccount",
     "allauth.socialaccount.providers.openid_connect",
+    "procrastinate.contrib.django",
     "mieter.konten",
     "mieter.kern",
+    "mieter.jobs",
 ]
 
 MIDDLEWARE = [
@@ -141,6 +143,11 @@ SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
 
 vars().update(env.email_url("EMAIL_URL", default="consolemail://"))
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="mieter@localhost")
+
+
+# Hintergrundaufgaben (Procrastinate). Die Warteschlange liegt in PostgreSQL.
+
+PROCRASTINATE_DATABASE_ALIAS = "default"
 
 
 # Passwortprüfung
