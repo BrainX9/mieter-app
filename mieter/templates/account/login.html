@@ -1,0 +1,30 @@
+{% extends "account/base_entrance.html" %}
+{% load socialaccount %}
+{% block head_title %}Anmelden{% endblock head_title %}
+{% block content %}
+  <article class="anmeldung">
+    <h1>Anmelden</h1>
+    {% get_providers as anbieter %}
+    {% if anbieter %}
+      {% for provider in anbieter %}
+        <form method="post" action="{% provider_login_url provider process='login' %}">
+          {% csrf_token %}
+          {% if redirect_field_value %}
+            <input type="hidden" name="{{ redirect_field_name }}" value="{{ redirect_field_value }}">
+          {% endif %}
+          <button type="submit" class="oidc">Anmelden mit {{ provider.name }}</button>
+        </form>
+      {% endfor %}
+      <p class="trenner">oder mit E-Mail-Adresse</p>
+    {% endif %}
+    <form method="post" action="{% url 'account_login' %}">
+      {% csrf_token %}
+      {{ form.as_div }}
+      {{ redirect_field }}
+      <button type="submit">Anmelden</button>
+    </form>
+    {% if registrierung_offen %}
+      <p>Noch kein Konto? <a href="{% url 'account_signup' %}">Registrieren</a></p>
+    {% endif %}
+  </article>
+{% endblock content %}

@@ -21,6 +21,27 @@ uv run python manage.py runserver
 
 Die App läuft dann unter <http://localhost:8000/>, die Verwaltung unter `/admin/`.
 
+## Anmeldung
+
+- Angemeldet wird mit E-Mail-Adresse und Passwort. Ohne Anmeldung ist keine Seite erreichbar.
+- Neue Konten legst du im Admin an (`/admin/`) oder mit `uv run python manage.py createsuperuser`.
+  Die Selbstregistrierung ist standardmäßig aus (`REGISTRIERUNG_OFFEN`).
+- Bei der ersten Anmeldung muss die E-Mail-Adresse bestätigt werden. In der Entwicklung
+  erscheint die Bestätigungs-Mail in der Konsole von `runserver`.
+
+### Synology SSO Server (OIDC)
+
+1. Im SSO Server unter *Dienste → OIDC* eine Anwendung anlegen. Redirect-URI:
+   `<Basis-URL>/konto/oidc/synology/login/callback/`, z. B.
+   `http://localhost:8000/konto/oidc/synology/login/callback/`.
+2. In `.env` setzen: `OIDC_SERVER_URL` (die Well-Known-URL des SSO Servers ohne
+   `/.well-known/openid-configuration`), `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`.
+3. Auf der Anmeldeseite erscheint dann „Anmelden mit Synology SSO“.
+
+Über SSO meldet sich nur an, wer schon ein Konto mit derselben E-Mail-Adresse hat
+(solange die Registrierung geschlossen ist). Die E-Mail-Adresse des eigenen SSO Servers gilt
+als vertrauenswürdig; abschalten mit `OIDC_EMAIL_VERTRAUEN=False`.
+
 ## Konfiguration
 
 Alle Einstellungen kommen aus Umgebungsvariablen; eine `.env`-Datei im

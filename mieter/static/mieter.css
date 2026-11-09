@@ -1,0 +1,8 @@
+/* Ergänzungen zu Pico.css */
+.marke { text-decoration: none; }
+form.abmelden { margin: 0; }
+form.abmelden button { margin: 0; padding: 0.35rem 0.9rem; }
+.anmeldung { max-width: 32rem; margin-inline: auto; }
+.anmeldung .trenner { text-align: center; color: var(--pico-muted-color); }
+.meldung-error { border-left: 4px solid var(--pico-del-color); }
+.meldung-success { border-left: 4px solid var(--pico-ins-color); }

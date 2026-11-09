@@ -1,3 +1,6 @@
+# Unveränderte Fremddateien (htmx, Pico.css) nicht anfassen
+exclude: ^mieter/static/vendor/
+
 repos:
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.0
