@@ -29,13 +29,12 @@
     </nav>
   </header>
   <main class="container">
-    {% if messages %}
-      <section aria-label="Meldungen">
-        {% for message in messages %}
-          <article class="meldung meldung-{{ message.tags }}" role="status">{{ message }}</article>
-        {% endfor %}
-      </section>
-    {% endif %}
+    {# Immer vorhanden, damit HTMX-Antworten Meldungen per hx-select-oob hierher bringen. #}
+    <section id="meldungen" aria-label="Meldungen" aria-live="polite">
+      {% for message in messages %}
+        <article class="meldung meldung-{{ message.tags }}" role="status">{{ message }}</article>
+      {% endfor %}
+    </section>
     {% block content %}{% endblock content %}
   </main>
   {% block extra_body %}{% endblock extra_body %}

@@ -126,6 +126,18 @@ class Mitgliedschaft(models.Model):
     def __str__(self):
         return f"{self.nutzer} – {self.wohnung} ({self.get_rolle_display()})"
 
+    @property
+    def ist_letzter_verwalter(self):
+        """Ohne dieses Mitglied hätte die Wohnung niemanden mehr, der sie verwaltet."""
+        return (
+            self.rolle == self.Rolle.VERWALTEN
+            and not Mitgliedschaft.objects.filter(
+                wohnung_id=self.wohnung_id, rolle=self.Rolle.VERWALTEN
+            )
+            .exclude(pk=self.pk)
+            .exists()
+        )
+
 
 class KostenartQuerySet(models.QuerySet):
     def passend_zu(self, verteilerschluessel):
