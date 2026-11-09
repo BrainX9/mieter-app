@@ -222,9 +222,9 @@ class Abrechnungsbereich(models.Model):
     Verteilerschluessel = Verteilerschluessel
 
     class Rundungsregel(models.TextChoices):
-        WIE_VERMIETER = "wie_vermieter", "Wie Vermieter (Einheitspreis auf 2 Stellen)"
-        N_STELLEN = "n_stellen", "Einheitspreis auf n Stellen"
-        EXAKT = "exakt", "Exakt (nur Endbetrag runden)"
+        WIE_VERMIETER = "wie_vermieter", "Wie Vermieter: Preis je Einheit auf Cent gerundet"
+        N_STELLEN = "n_stellen", "Preis je Einheit auf eigene Stellenzahl gerundet"
+        EXAKT = "exakt", "Exakt: nur der Endbetrag wird gerundet"
 
     abrechnung = models.ForeignKey(
         Abrechnung, on_delete=models.CASCADE, related_name="bereiche", verbose_name="Abrechnung"
@@ -260,7 +260,7 @@ class Abrechnungsbereich(models.Model):
         "Nachkommastellen",
         default=2,
         validators=[MaxValueValidator(6)],
-        help_text="Nur für die Regel „Einheitspreis auf n Stellen“.",
+        help_text="Nur für „Preis je Einheit auf eigene Stellenzahl gerundet“.",
     )
     reihenfolge = models.PositiveSmallIntegerField("Reihenfolge", default=0)
 

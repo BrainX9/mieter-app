@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load static format %}
+{% block head_title %}{{ titel }}{% endblock head_title %}
+{% block extra_head %}<script src="{% static 'bereich.js' %}" defer></script>{% endblock extra_head %}
+{% block content %}
+  <article class="formular">
+    <h1>{{ titel }}</h1>
+    <form method="post" novalidate class="bereich-formular">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+
+      {% include "abrechnungen/_feld.html" with feld=form.bezeichnung %}
+      {% include "abrechnungen/_feld.html" with feld=form.verteilerschluessel %}
+
+      <div data-nur-mengen>
+        {% include "abrechnungen/_feld.html" with feld=form.gesamtmenge %}
+        {% for eintrag in mengenhilfe %}
+          <small class="erlaeuterung mengenhilfe" data-schluessel="{{ eintrag.schluessel }}">
+            <strong>{{ eintrag.schluessel.label }}:</strong> {{ eintrag.hilfe.gesamtmenge }}
+          </small>
+        {% endfor %}
+
+        {% include "abrechnungen/_feld.html" with feld=form.anteil_menge %}
+        {% for eintrag in mengenhilfe %}
+          <small class="erlaeuterung mengenhilfe" data-schluessel="{{ eintrag.schluessel }}">
+            <strong>{{ eintrag.schluessel.label }}:</strong> {{ eintrag.hilfe.anteil }}
+          </small>
+        {% endfor %}
+      </div>
+      <p class="erlaeuterung mengenhilfe" data-schluessel="individuell">
+        <strong>Umlage individuell:</strong> {{ individuell_hilfe }}
+      </p>
+
+      <fieldset data-nur-mengen>
+        <legend>{{ form.rundungsregel.label }}</legend>
+        {% for option in form.rundungsregel %}
+          <label>{{ option.tag }} {{ option.choice_label }}</label>
+        {% endfor %}
+        {% for f in form.rundungsregel.errors %}<small class="fehler">{{ f }}</small>{% endfor %}
+        <details class="rundungshilfe">
+          <summary>Welche Rundungsregel passt?</summary>
+          <p>
+            Schau in der Abrechnung nach dem Preis je m² oder je Punkt. Hat er zwei
+            Nachkommastellen (z. B. 3,33 €), passt meist „Wie Vermieter“. Hat er mehr
+            (z. B. 3,333 €), nimm die eigene Stellenzahl. Die App rechnet immer zusätzlich
+            exakt nach und zeigt die Differenz.
+          </p>
+          <p>
+            Beispiel: {{ beispiel.BEISPIEL_KOSTEN|euro }} Kosten, {{ beispiel.BEISPIEL_GESAMT|zahl }} m²
+            Gesamtfläche, {{ beispiel.BEISPIEL_ANTEIL|zahl }} m² deine Wohnung.
+          </p>
+          <div class="overflow-auto">
+            <table>
+              <thead><tr><th>Regel</th><th class="zahl">Preis je m²</th><th class="zahl">Dein Anteil</th></tr></thead>
+              <tbody>
+                {% for zeile in rundungsbeispiel %}
+                  <tr>
+                    <td><strong>{{ zeile.regel.label }}</strong>{% if zeile.regel == "n_stellen" %} (hier {{ beispiel.BEISPIEL_STELLEN }} Stellen){% endif %}<br><small>{{ zeile.erklaerung }}</small></td>
+                    <td class="zahl">{% if zeile.regel == "exakt" %}{{ zeile.einheitspreis|zahl:6 }} …{% else %}{{ zeile.einheitspreis|zahl }}{% endif %} €</td>
+                    <td class="zahl">{{ zeile.anteil|euro }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </fieldset>
+
+      <div data-nur-n-stellen>
+        {% include "abrechnungen/_feld.html" with feld=form.nachkommastellen %}
+      </div>
+      {% include "abrechnungen/_feld.html" with feld=form.reihenfolge %}
+
+      <div class="knoepfe">
+        <button type="submit">Speichern</button>
+        <a href="{{ zurueck.get_absolute_url }}" role="button" class="secondary outline">Abbrechen</a>
+      </div>
+    </form>
+  </article>
+{% endblock content %}

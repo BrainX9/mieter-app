@@ -1,12 +1,15 @@
 """Formulare der Oberfläche. Dezimalzahlen werden mit Komma eingegeben (localize=True)."""
 
 import datetime
+from decimal import Decimal
 from functools import partial
 
 from django import forms
 
+from mieter.kern.templatetags.format import zahl_formatieren
 from mieter.kern.zahlen import deutsche_zahl
 
+from .hilfe import VORSCHLAG_BEZEICHNUNG
 from .models import (
     Abrechnung,
     Abrechnungsbereich,
@@ -28,6 +31,23 @@ def _deutsch_einlesen(to_python, wert):
     return to_python(deutsche_zahl(wert))
 
 
+class DezimalEingabe(forms.TextInput):
+    """Textfeld für deutsche Zahlen.
+
+    Kein type="number": Browser verwerfen dort Komma und Tausenderpunkte. Gespeicherte
+    Werte erscheinen deutsch, Geld mit zwei Stellen, Mengen ohne Nullen am Ende.
+    """
+
+    def __init__(self, stellen=None, attrs=None):
+        super().__init__(attrs={"inputmode": "decimal", "autocomplete": "off", **(attrs or {})})
+        self.stellen = stellen
+
+    def format_value(self, value):
+        if isinstance(value, Decimal):
+            return zahl_formatieren(value, self.stellen)
+        return super().format_value(value)
+
+
 class LokalisierteZahlenMixin:
     """Dezimalfelder akzeptieren 1.234,56 und zeigen deutsche Schreibweise."""
 
@@ -36,8 +56,8 @@ class LokalisierteZahlenMixin:
         for feld in self.fields.values():
             if isinstance(feld, forms.DecimalField):
                 feld.localize = True
+                feld.widget = DezimalEingabe(stellen=2 if feld.decimal_places == 2 else None)
                 feld.widget.is_localized = True
-                feld.widget.attrs.setdefault("inputmode", "decimal")
                 feld.to_python = partial(_deutsch_einlesen, feld.to_python)
 
 
@@ -79,6 +99,8 @@ class AbrechnungForm(forms.ModelForm):
 
 
 class AbrechnungsbereichForm(LokalisierteZahlenMixin, forms.ModelForm):
+    """Bezeichnung darf leer bleiben, dann gilt der ausgegraute Vorschlag."""
+
     class Meta:
         model = Abrechnungsbereich
         fields = [
@@ -90,6 +112,24 @@ class AbrechnungsbereichForm(LokalisierteZahlenMixin, forms.ModelForm):
             "nachkommastellen",
             "reihenfolge",
         ]
+        labels = {
+            "gesamtmenge": "Gesamtmenge (alle Wohnungen)",
+            "anteil_menge": "Anteil deiner Wohnung",
+        }
+        widgets = {"rundungsregel": forms.RadioSelect}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        bezeichnung = self.fields["bezeichnung"]
+        bezeichnung.required = False
+        bezeichnung.widget.attrs["placeholder"] = VORSCHLAG_BEZEICHNUNG
+        bezeichnung.help_text = f"Leer lassen für „{VORSCHLAG_BEZEICHNUNG}“."
+        # Die Hilfe zu den Mengen steht je Verteilerschlüssel im Template.
+        self.fields["gesamtmenge"].help_text = ""
+        self.fields["anteil_menge"].help_text = ""
+
+    def clean_bezeichnung(self):
+        return self.cleaned_data["bezeichnung"].strip() or VORSCHLAG_BEZEICHNUNG
 
 
 class KostenpositionForm(LokalisierteZahlenMixin, forms.ModelForm):
