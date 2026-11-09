@@ -1,0 +1,3 @@
+{% extends "base.html" %}
+{% block head_title %}Kein Zugriff{% endblock head_title %}
+{% block content %}<article><h1>Kein Zugriff</h1><p>Dafür fehlen dir die Rechte. Für diese Wohnung hast du vermutlich nur Leserechte.</p><p><a href="{% url 'startseite' %}">Zur Startseite</a></p></article>{% endblock content %}

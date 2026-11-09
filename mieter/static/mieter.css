@@ -6,3 +6,17 @@ form.abmelden button { margin: 0; padding: 0.35rem 0.9rem; }
 .anmeldung .trenner { text-align: center; color: var(--pico-muted-color); }
 .meldung-error { border-left: 4px solid var(--pico-del-color); }
 .meldung-success { border-left: 4px solid var(--pico-ins-color); }
+.kopf { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.kopf hgroup, .kopf h1, .kopf h2, .kopf h3 { margin-bottom: 0; }
+.knoepfe { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.zahl { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+td.aktion { width: 1%; }
+td.aktion form { margin: 0; }
+button.klein { margin: 0; padding: 0.2rem 0.6rem; font-size: 0.85rem; }
+form.zeile fieldset { margin-bottom: 0.5rem; }
+.formular { max-width: 40rem; }
+.fehler, .errorlist, .hinweis { color: var(--pico-del-color); }
+.nachzahlung { color: var(--pico-del-color); font-weight: 600; }
+.guthaben { color: var(--pico-ins-color); font-weight: 600; }
+button.loeschen { background: var(--pico-del-color); border-color: var(--pico-del-color); }
+.ergebnis header { display: flex; gap: 0.5rem; flex-wrap: wrap; }

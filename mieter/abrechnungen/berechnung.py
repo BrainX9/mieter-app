@@ -28,6 +28,13 @@ N_STELLEN = "n_stellen"
 EXAKT = "exakt"
 DIREKT = "direkt"
 
+MENGENEINHEITEN = {
+    "wohnflaeche": "m²",
+    "einheiten": "Einheit",
+    "personen": "Person",
+    "wohneinheiten": "Wohneinheit",
+}
+
 
 def runden(wert: Decimal, stellen: int = 2) -> Decimal:
     """Kaufmännisch runden (ROUND_HALF_UP) auf die angegebene Zahl an Stellen."""
@@ -62,6 +69,11 @@ class Bereichsergebnis:
     @property
     def vollstaendig(self) -> bool:
         return self.fehler is None
+
+    @property
+    def mengeneinheit(self) -> str:
+        """Einheit des Verteilerschlüssels, z. B. für „3,33 € je m²“."""
+        return MENGENEINHEITEN.get(self.verteilerschluessel, "")
 
     @property
     def rundungsdifferenz(self) -> Decimal | None:
@@ -99,6 +111,11 @@ class Abrechnungsergebnis:
         if not self.vollstaendig:
             return None
         return self.summe_anteile - self.vorauszahlungen
+
+    @property
+    def saldo_betrag(self) -> Decimal | None:
+        """Saldo ohne Vorzeichen, z. B. für „Guthaben 136,24 €“."""
+        return None if self.saldo is None else abs(self.saldo)
 
     @property
     def saldo_exakt(self) -> Decimal | None:

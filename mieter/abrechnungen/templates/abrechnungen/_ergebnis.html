@@ -1,0 +1,45 @@
+{% load format %}
+<article class="ergebnis">
+  <header><strong>Ergebnis</strong> · {% include "abrechnungen/_saldo.html" %}</header>
+  {% if ergebnis.bereiche %}
+    <div class="overflow-auto">
+      <table>
+        <thead>
+          <tr>
+            <th>Bereich</th><th class="zahl">Kosten</th><th class="zahl">Einheitspreis</th>
+            <th class="zahl">Anteil</th><th class="zahl">Anteil exakt</th><th class="zahl">Differenz</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in ergebnis.bereiche %}
+            <tr>
+              <td>{{ b.bezeichnung }}</td>
+              <td class="zahl">{{ b.kosten|euro }}</td>
+              <td class="zahl">
+                {% if b.einheitspreis is not None %}
+                  {{ b.einheitspreis|zahl }} € je {{ b.mengeneinheit }}
+                  <br><small title="exakt">{{ b.einheitspreis_exakt|zahl:6 }}</small>
+                {% elif b.verteilerschluessel == "direkt" %}<small>direkt</small>{% endif %}
+              </td>
+              {% if b.vollstaendig %}
+                <td class="zahl"><strong>{{ b.anteil|euro }}</strong></td>
+                <td class="zahl">{{ b.anteil_exakt|zahl:4 }} €</td>
+                <td class="zahl">{{ b.rundungsdifferenz|zahl:4 }} €</td>
+              {% else %}
+                <td colspan="3" class="hinweis">{{ b.fehler }}</td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr><th>Summe Anteile</th><td></td><td></td><td class="zahl"><strong>{{ ergebnis.summe_anteile|euro }}</strong></td><td class="zahl">{% if ergebnis.vollstaendig %}{{ ergebnis.summe_anteile_exakt|zahl:4 }} €{% endif %}</td><td></td></tr>
+          <tr><th>Vorauszahlungen</th><td></td><td></td><td class="zahl">{{ ergebnis.vorauszahlungen|euro }}</td><td></td><td></td></tr>
+          <tr><th>Saldo</th><td></td><td></td><td class="zahl"><strong>{{ ergebnis.saldo|euro }}</strong></td><td class="zahl">{% if ergebnis.vollstaendig %}{{ ergebnis.saldo_exakt|zahl:4 }} €{% endif %}</td><td></td></tr>
+        </tfoot>
+      </table>
+    </div>
+    <small>Positiver Saldo: Nachzahlung, negativer Saldo: Guthaben. „Anteil exakt“ ist die Rechnung ohne jede Rundung.</small>
+  {% else %}
+    <p>Sobald Bereiche und Kosten erfasst sind, steht hier die Nachrechnung.</p>
+  {% endif %}
+</article>

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block head_title %}{{ titel }}{% endblock head_title %}
+{% block content %}
+  <article class="formular">
+    <h1>{{ titel }}</h1>
+    <form method="post" novalidate>
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      {{ form.as_div }}
+      <div class="knoepfe">
+        <button type="submit">Speichern</button>
+        <a href="{% if zurueck %}{{ zurueck.get_absolute_url }}{% else %}{% url 'startseite' %}{% endif %}" role="button" class="secondary outline">Abbrechen</a>
+      </div>
+    </form>
+  </article>
+{% endblock content %}

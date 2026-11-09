@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block head_title %}{{ titel }}{% endblock head_title %}
+{% block content %}
+  <article class="formular">
+    <h1>{{ titel }}</h1>
+    <p>Soll „{{ objekt }}“ wirklich gelöscht werden? Alle zugehörigen Daten gehen dabei verloren.</p>
+    <form method="post">
+      {% csrf_token %}
+      <div class="knoepfe">
+        <button type="submit" class="loeschen">Endgültig löschen</button>
+        <a href="{{ zurueck.get_absolute_url }}" role="button" class="secondary outline">Abbrechen</a>
+      </div>
+    </form>
+  </article>
+{% endblock content %}
