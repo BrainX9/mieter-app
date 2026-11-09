@@ -42,6 +42,18 @@ Die App läuft dann unter <http://localhost:8000/>, die Verwaltung unter `/admin
 (solange die Registrierung geschlossen ist). Die E-Mail-Adresse des eigenen SSO Servers gilt
 als vertrauenswürdig; abschalten mit `OIDC_EMAIL_VERTRAUEN=False`.
 
+## Oberfläche
+
+- **Wohnungen** → **Abrechnungen** (Jahr absteigend, mit Ergebnis) → **Abrechnung** mit
+  Bereichen, Kosten, Vorauszahlungen und der Nachrechnung: gerundet nach der Regel des
+  Bereichs und daneben exakt.
+- Kosten und Vorauszahlungen fügt man mit HTMX direkt in der Seite hinzu und entfernt sie
+  dort; das Ergebnis aktualisiert sich sofort. Ohne JavaScript funktioniert dasselbe mit
+  Neuladen.
+- Zahlen gibt man deutsch ein (`1.234,56`), Beträge erscheinen als `1.234,56 €`.
+- Wer eine Wohnung anlegt, verwaltet sie. Weitere Mitglieder (auch „Nur lesen“) und
+  Zusatzfelder trägt man vorerst im Admin ein.
+
 ## Datenmodell
 
 - **Wohnung** mit **Mitgliedschaften** (Rolle „Verwalten“ oder „Nur lesen“). Jede Abfrage

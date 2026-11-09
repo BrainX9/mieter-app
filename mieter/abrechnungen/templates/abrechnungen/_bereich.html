@@ -1,0 +1,59 @@
+{% load format %}
+{% with bereich=eintrag.bereich form=eintrag.form %}
+<article id="bereich-{{ bereich.pk }}" class="bereich">
+  <header class="kopf">
+    <hgroup>
+      <h3>{{ bereich.bezeichnung }}</h3>
+      <p>
+        {{ bereich.get_verteilerschluessel_display }}{% if not bereich.ist_direkt %}: {{ bereich.anteil_menge|zahl }} von {{ bereich.gesamtmenge|zahl }}{% endif %}
+        · {{ bereich.get_rundungsregel_display }}{% if bereich.rundungsregel == "n_stellen" %} ({{ bereich.nachkommastellen }}){% endif %}
+      </p>
+    </hgroup>
+    {% if darf_verwalten %}
+      <div class="knoepfe">
+        <a href="{% url 'bereich_bearbeiten' bereich.pk %}" class="secondary">Bearbeiten</a>
+        <a href="{% url 'bereich_loeschen' bereich.pk %}" class="secondary">Löschen</a>
+      </div>
+    {% endif %}
+  </header>
+  <div class="overflow-auto">
+    <table>
+      <thead><tr><th>Kostenart</th><th>Notiz</th><th class="zahl">{% if bereich.ist_direkt %}Betrag der Wohnung{% else %}Gesamtkosten{% endif %}</th>{% if darf_verwalten %}<th></th>{% endif %}</tr></thead>
+      <tbody>
+        {% for position in bereich.positionen.all %}
+          <tr>
+            <td>{{ position.kostenart }}</td>
+            <td>{{ position.notiz }}</td>
+            <td class="zahl">{{ position.betrag|euro }}</td>
+            {% if darf_verwalten %}
+              <td class="aktion">
+                <form method="post" action="{% url 'position_loeschen' position.pk %}"
+                      hx-post="{% url 'position_loeschen' position.pk %}" hx-target="#bereich-{{ bereich.pk }}" hx-swap="outerHTML"
+                      hx-confirm="„{{ position.kostenart }}“ entfernen?">
+                  {% csrf_token %}
+                  <button type="submit" class="secondary outline klein" aria-label="{{ position.kostenart }} entfernen">Entfernen</button>
+                </form>
+              </td>
+            {% endif %}
+          </tr>
+        {% empty %}
+          <tr><td colspan="4"><small>Noch keine Kosten erfasst.</small></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if darf_verwalten and form %}
+    <form method="post" action="{% url 'position_neu' bereich.pk %}" class="zeile"
+          hx-post="{% url 'position_neu' bereich.pk %}" hx-target="#bereich-{{ bereich.pk }}" hx-swap="outerHTML">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      <fieldset class="grid">
+        <label>{{ form.kostenart.label }}{{ form.kostenart }}{% for f in form.kostenart.errors %}<small class="fehler">{{ f }}</small>{% endfor %}</label>
+        <label>{{ form.betrag.label }}{{ form.betrag }}{% for f in form.betrag.errors %}<small class="fehler">{{ f }}</small>{% endfor %}</label>
+        <label>{{ form.notiz.label }}{{ form.notiz }}</label>
+      </fieldset>
+      <button type="submit" class="outline">Kosten hinzufügen</button>
+    </form>
+  {% endif %}
+</article>
+{% endwith %}

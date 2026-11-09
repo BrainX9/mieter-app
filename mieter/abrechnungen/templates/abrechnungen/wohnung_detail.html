@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load format %}
+{% block head_title %}{{ wohnung }}{% endblock head_title %}
+{% block content %}
+  <nav aria-label="breadcrumb"><ul><li><a href="{% url 'startseite' %}">Wohnungen</a></li><li>{{ wohnung }}</li></ul></nav>
+  <div class="kopf">
+    <hgroup>
+      <h1>{{ wohnung.bezeichnung }}</h1>
+      <p>{% if wohnung.wohnflaeche %}{{ wohnung.wohnflaeche|zahl }} m²{% endif %}{% if wohnung.adresse %} · {{ wohnung.adresse|linebreaksbr }}{% endif %}</p>
+    </hgroup>
+    {% if darf_verwalten %}
+      <div class="knoepfe">
+        <a href="{% url 'wohnung_bearbeiten' wohnung.pk %}" role="button" class="secondary outline">Bearbeiten</a>
+        <a href="{% url 'abrechnung_neu' wohnung.pk %}" role="button">Neue Abrechnung</a>
+      </div>
+    {% endif %}
+  </div>
+  {% if ergebnisse %}
+    <div class="overflow-auto">
+      <table>
+        <thead><tr><th>Jahr</th><th>Zeitraum</th><th>Vermieter</th><th class="zahl">Kosten</th><th class="zahl">Vorauszahlungen</th><th class="zahl">Ergebnis</th></tr></thead>
+        <tbody>
+          {% for abrechnung, ergebnis in ergebnisse %}
+            <tr>
+              <td><a href="{{ abrechnung.get_absolute_url }}">{{ abrechnung.abrechnungsjahr }}</a></td>
+              <td>{{ abrechnung.zeitraum_von|date:"d.m.Y" }} – {{ abrechnung.zeitraum_bis|date:"d.m.Y" }}</td>
+              <td>{{ abrechnung.vermieter }}</td>
+              <td class="zahl">{{ ergebnis.summe_anteile|euro }}</td>
+              <td class="zahl">{{ ergebnis.vorauszahlungen|euro }}</td>
+              <td class="zahl">{% include "abrechnungen/_saldo.html" %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <article><p>Für diese Wohnung gibt es noch keine Abrechnung.</p></article>
+  {% endif %}
+{% endblock content %}

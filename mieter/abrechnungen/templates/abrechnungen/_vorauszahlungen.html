@@ -1,0 +1,46 @@
+{% load format %}
+<section id="vorauszahlungen">
+  <h2>Vorauszahlungen</h2>
+  <article>
+    <div class="overflow-auto">
+      <table>
+        <thead><tr><th>Bezeichnung</th><th>Bereich</th><th class="zahl">Betrag</th>{% if darf_verwalten %}<th></th>{% endif %}</tr></thead>
+        <tbody>
+          {% for v in vorauszahlungen %}
+            <tr>
+              <td>{{ v.bezeichnung }}</td>
+              <td>{{ v.bereich|default:"" }}</td>
+              <td class="zahl">{{ v.betrag|euro }}</td>
+              {% if darf_verwalten %}
+                <td class="aktion">
+                  <form method="post" action="{% url 'vorauszahlung_loeschen' v.pk %}"
+                        hx-post="{% url 'vorauszahlung_loeschen' v.pk %}" hx-target="#vorauszahlungen" hx-swap="outerHTML"
+                        hx-confirm="„{{ v.bezeichnung }}“ entfernen?">
+                    {% csrf_token %}
+                    <button type="submit" class="secondary outline klein" aria-label="{{ v.bezeichnung }} entfernen">Entfernen</button>
+                  </form>
+                </td>
+              {% endif %}
+            </tr>
+          {% empty %}
+            <tr><td colspan="4"><small>Noch keine Vorauszahlungen erfasst.</small></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if darf_verwalten and vorauszahlungsformular %}
+      {% with form=vorauszahlungsformular %}
+        <form method="post" action="{% url 'vorauszahlung_neu' abrechnung.pk %}" class="zeile"
+              hx-post="{% url 'vorauszahlung_neu' abrechnung.pk %}" hx-target="#vorauszahlungen" hx-swap="outerHTML">
+          {% csrf_token %}
+          <fieldset class="grid">
+            <label>{{ form.bezeichnung.label }}{{ form.bezeichnung }}{% for f in form.bezeichnung.errors %}<small class="fehler">{{ f }}</small>{% endfor %}</label>
+            <label>{{ form.betrag.label }}{{ form.betrag }}{% for f in form.betrag.errors %}<small class="fehler">{{ f }}</small>{% endfor %}</label>
+            <label>{{ form.bereich.label }}{{ form.bereich }}</label>
+          </fieldset>
+          <button type="submit" class="outline">Vorauszahlung hinzufügen</button>
+        </form>
+      {% endwith %}
+    {% endif %}
+  </article>
+</section>

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block head_title %}Abrechnung {{ abrechnung.abrechnungsjahr }}{% endblock head_title %}
+{% block content %}
+  <nav aria-label="breadcrumb">
+    <ul>
+      <li><a href="{% url 'startseite' %}">Wohnungen</a></li>
+      <li><a href="{{ wohnung.get_absolute_url }}">{{ wohnung }}</a></li>
+      <li>{{ abrechnung.abrechnungsjahr }}</li>
+    </ul>
+  </nav>
+  <div class="kopf">
+    <hgroup>
+      <h1>Abrechnung {{ abrechnung.abrechnungsjahr }}</h1>
+      <p>{{ abrechnung.zeitraum_von|date:"d.m.Y" }} – {{ abrechnung.zeitraum_bis|date:"d.m.Y" }}{% if abrechnung.vermieter %} · {{ abrechnung.vermieter }}{% endif %}</p>
+    </hgroup>
+    {% if darf_verwalten %}
+      <div class="knoepfe">
+        <a href="{% url 'abrechnung_bearbeiten' abrechnung.pk %}" role="button" class="secondary outline">Bearbeiten</a>
+        <a href="{% url 'abrechnung_loeschen' abrechnung.pk %}" role="button" class="secondary outline">Löschen</a>
+      </div>
+    {% endif %}
+  </div>
+  {% if abrechnung.notiz %}<p>{{ abrechnung.notiz|linebreaksbr }}</p>{% endif %}
+
+  <section id="ergebnis" aria-live="polite">{% include "abrechnungen/_ergebnis.html" %}</section>
+
+  <div class="kopf">
+    <h2>Bereiche</h2>
+    {% if darf_verwalten %}<a href="{% url 'bereich_neu' abrechnung.pk %}" role="button" class="outline">Neuer Bereich</a>{% endif %}
+  </div>
+  {% for eintrag in bereiche %}
+    {% include "abrechnungen/_bereich.html" %}
+  {% empty %}
+    <article><p>Noch keine Bereiche. Ein Bereich fasst Kostenarten mit demselben Verteilerschlüssel zusammen, z. B. „Allgemeine Betriebskosten“ nach Wohnfläche.</p></article>
+  {% endfor %}
+
+  {% include "abrechnungen/_vorauszahlungen.html" %}
+{% endblock content %}

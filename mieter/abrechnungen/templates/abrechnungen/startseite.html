@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% load format %}
+{% block head_title %}Wohnungen{% endblock head_title %}
+{% block content %}
+  <div class="kopf">
+    <h1>Wohnungen</h1>
+    <a href="{% url 'wohnung_neu' %}" role="button">Neue Wohnung</a>
+  </div>
+  {% if wohnungen %}
+    <div class="overflow-auto">
+      <table>
+        <thead><tr><th>Wohnung</th><th class="zahl">Wohnfläche</th><th class="zahl">Abrechnungen</th></tr></thead>
+        <tbody>
+          {% for wohnung in wohnungen %}
+            <tr>
+              <td><a href="{{ wohnung.get_absolute_url }}">{{ wohnung.bezeichnung }}</a></td>
+              <td class="zahl">{% if wohnung.wohnflaeche %}{{ wohnung.wohnflaeche|zahl }} m²{% endif %}</td>
+              <td class="zahl">{{ wohnung.abrechnungen.all|length }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <article>
+      <p>Du hast noch keine Wohnung. Leg zuerst eine an, dann kannst du ihre Abrechnungen erfassen.</p>
+    </article>
+  {% endif %}
+{% endblock content %}

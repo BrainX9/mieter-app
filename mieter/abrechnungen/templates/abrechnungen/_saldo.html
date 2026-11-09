@@ -1,0 +1,1 @@
+{% load format %}{% if not ergebnis.vollstaendig %}<span class="hinweis">unvollständig</span>{% elif ergebnis.ist_nachzahlung %}<span class="nachzahlung">Nachzahlung {{ ergebnis.saldo_betrag|euro }}</span>{% elif ergebnis.ist_guthaben %}<span class="guthaben">Guthaben {{ ergebnis.saldo_betrag|euro }}</span>{% else %}ausgeglichen{% endif %}
