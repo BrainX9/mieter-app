@@ -19,7 +19,7 @@
                 {% if b.einheitspreis is not None %}
                   {{ b.einheitspreis|zahl }} € je {{ b.mengeneinheit }}
                   <br><small title="exakt">{{ b.einheitspreis_exakt|zahl:6 }}</small>
-                {% elif b.verteilerschluessel == "direkt" %}<small>direkt</small>{% endif %}
+                {% elif b.verteilerschluessel == "individuell" %}<small>individuell</small>{% endif %}
               </td>
               {% if b.vollstaendig %}
                 <td class="zahl"><strong>{{ b.anteil|euro }}</strong></td>

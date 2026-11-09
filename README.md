@@ -59,10 +59,12 @@ als vertrauenswürdig; abschalten mit `OIDC_EMAIL_VERTRAUEN=False`.
 - **Wohnung** mit **Mitgliedschaften** (Rolle „Verwalten“ oder „Nur lesen“). Jede Abfrage
   auf Wohnungsdaten läuft über `objects.fuer_nutzer(nutzer)` bzw. `verwaltbar_fuer(nutzer)`.
 - **Abrechnung** (Jahr, Zeitraum) → **Abrechnungsbereiche** mit Verteilerschlüssel
-  (Wohnfläche, Punkte/Einheiten, Personen, Wohneinheiten oder direkter Betrag) und
+  (Umlage nach Fläche, pro Wohnung, nach Personen/Punkten oder individuell) und
   Rundungsregel → **Kostenpositionen** je Kostenart. Dazu **Vorauszahlungen**.
 - **Kostenarten** und **Zusatzfelder** sind Daten: Neue legt man an, ohne Migration.
-  Die Kostenarten nach § 2 BetrKV sind vorbelegt.
+  Die Kostenarten nach § 2 BetrKV sind vorbelegt, jeweils mit passenden
+  Verteilerschlüsseln und einem Hinweis. Im Bereich stehen nur Kostenarten zur Auswahl,
+  die zu seinem Schlüssel passen. Kostenarten ohne Schlüssel passen überall.
 
 Die Nachrechnung steht in `mieter/abrechnungen/berechnung.py`, nur mit `Decimal` und
 `ROUND_HALF_UP`. Rundungsregeln pro Bereich:

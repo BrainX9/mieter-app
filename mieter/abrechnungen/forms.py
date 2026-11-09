@@ -99,7 +99,10 @@ class KostenpositionForm(LokalisierteZahlenMixin, forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["kostenart"].queryset = Kostenart.objects.filter(aktiv=True)
+        # Nur Kostenarten, die zum Verteilerschlüssel des Bereichs passen.
+        self.fields["kostenart"].queryset = Kostenart.objects.filter(aktiv=True).passend_zu(
+            self.instance.bereich.verteilerschluessel
+        )
         self.fields["kostenart"].empty_label = "Kostenart wählen …"
 
     def clean_kostenart(self):

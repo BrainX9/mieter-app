@@ -20,10 +20,10 @@ def bereich(regel=b.WIE_VERMIETER, kosten=("400.00", "350.00", "250.00"), **feld
     )
 
 
-def direkt(betrag="812.34"):
+def individuell(betrag="812.34"):
     return b.BereichEingabe(
         bezeichnung="Heizung und Warmwasser",
-        verteilerschluessel=b.DIREKT,
+        verteilerschluessel=b.INDIVIDUELL,
         rundungsregel=b.WIE_VERMIETER,
         kosten=[D(betrag)],
     )
@@ -91,7 +91,7 @@ class TestRundungsregeln:
     def test_konstanten_passen_zum_modell(self):
         regeln = Abrechnungsbereich.Rundungsregel
         assert {b.WIE_VERMIETER, b.N_STELLEN, b.EXAKT} == set(regeln.values)
-        assert b.DIREKT == Abrechnungsbereich.Verteilerschluessel.DIREKT
+        assert b.INDIVIDUELL == Abrechnungsbereich.Verteilerschluessel.INDIVIDUELL
 
 
 class TestExakteRechnung:
@@ -112,8 +112,8 @@ class TestExakteRechnung:
 
 
 class TestSonderfaelle:
-    def test_direkt_uebernimmt_den_betrag(self):
-        e = b.bereich_berechnen(direkt("812.34"))
+    def test_individuell_uebernimmt_den_betrag(self):
+        e = b.bereich_berechnen(individuell("812.34"))
         assert e.anteil == D("812.34")
         assert e.anteil_exakt == D("812.34")
         assert e.einheitspreis is None
@@ -137,7 +137,7 @@ class TestSonderfaelle:
 
 class TestGesamtergebnis:
     def test_nachzahlung(self):
-        e = b.berechnen([bereich(), direkt("812.34")], [D("600.00"), D("300.00")])
+        e = b.berechnen([bereich(), individuell("812.34")], [D("600.00"), D("300.00")])
         assert e.summe_anteile == D("1063.76")
         assert e.vorauszahlungen == D("900.00")
         assert e.saldo == D("163.76")
@@ -145,17 +145,17 @@ class TestGesamtergebnis:
         assert b.runden(e.saldo_exakt, 6) == D("164.006667")
 
     def test_guthaben(self):
-        e = b.berechnen([bereich(), direkt("812.34")], [D("1200.00")])
+        e = b.berechnen([bereich(), individuell("812.34")], [D("1200.00")])
         assert e.saldo == D("-136.24")
         assert e.ist_guthaben
 
     def test_ausgeglichen(self):
-        e = b.berechnen([direkt("100.00")], [D("100.00")])
+        e = b.berechnen([individuell("100.00")], [D("100.00")])
         assert e.saldo == D("0.00")
         assert not e.ist_nachzahlung and not e.ist_guthaben
 
     def test_unvollstaendig_hat_keinen_saldo(self):
-        e = b.berechnen([bereich(gesamtmenge=None), direkt()], [D("100")])
+        e = b.berechnen([bereich(gesamtmenge=None), individuell()], [D("100")])
         assert not e.vollstaendig
         assert len(e.fehler) == 1
         assert e.saldo is None and e.summe_anteile is None

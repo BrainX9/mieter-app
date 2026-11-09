@@ -12,6 +12,7 @@ from .models import (
     Kostenart,
     Kostenposition,
     Mitgliedschaft,
+    Verteilerschluessel,
     Vorauszahlung,
     Wohnung,
     Zusatzfeld,
@@ -55,9 +56,14 @@ class WohnungAdmin(NurEigeneWohnungenMixin, admin.ModelAdmin):
 
 @admin.register(Kostenart)
 class KostenartAdmin(admin.ModelAdmin):
-    list_display = ["name", "betrkv_nummer", "aktiv"]
+    list_display = ["name", "betrkv_nummer", "schluessel", "aktiv"]
     list_filter = ["aktiv"]
     search_fields = ["name"]
+
+    @admin.display(description="Verteilerschlüssel")
+    def schluessel(self, obj):
+        namen = dict(Verteilerschluessel.choices)
+        return ", ".join(namen.get(s, s) for s in obj.verteilerschluessel) or "alle"
 
 
 class AbrechnungsbereichInline(NurEigeneWohnungenMixin, admin.TabularInline):
