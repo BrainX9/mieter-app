@@ -59,16 +59,9 @@ jobs:
         with:
           fetch-depth: 0
       # Gleiche Version wie in .pre-commit-config.yaml. Der pre-commit-Hook prüft nur
-      # gestagte Änderungen, deshalb hier das Binary über die gesamte Git-Historie.
-      - name: gitleaks installieren
-        env:
-          GITLEAKS_VERSION: "8.30.0"
-          # sha256 von gitleaks_8.30.0_linux_x64.tar.gz (aus der checksums.txt des Releases)
-          GITLEAKS_SHA256: 79a3ab579b53f71efd634f3aaf7e04a0fa0cf206b7ed434638d1547a2470a66e
-        run: |
-          datei="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
-          curl -sSfL --retry 5 --retry-all-errors -o "${datei}" \
-            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${datei}"
-          echo "${GITLEAKS_SHA256}  ${datei}" | sha256sum -c -
-          tar -xzf "${datei}" gitleaks
-      - run: ./gitleaks git --redact --verbose .
+      # gestagte Änderungen, deshalb hier das offizielle Image über die gesamte Git-Historie.
+      - name: gitleaks über die Git-Historie
+        run: >-
+          docker run --rm -u "$(id -u):$(id -g)" -v "${PWD}:/repo"
+          ghcr.io/gitleaks/gitleaks:v8.30.0
+          git --redact --verbose /repo
