@@ -45,7 +45,7 @@ def daten(ich):
     heizung = fabrik.bereich(
         a,
         bezeichnung="Heizung",
-        verteilerschluessel=Abrechnungsbereich.Verteilerschluessel.DIREKT,
+        verteilerschluessel=Abrechnungsbereich.Verteilerschluessel.INDIVIDUELL,
         gesamtmenge=None,
         anteil_menge=None,
         reihenfolge=2,
@@ -163,7 +163,7 @@ class TestBereich:
             url,
             {
                 "bezeichnung": "Wasser und Müll",
-                "verteilerschluessel": "einheiten",
+                "verteilerschluessel": "personen_punkte",
                 "gesamtmenge": "1.234,5",
                 "anteil_menge": "98,76",
                 "rundungsregel": "n_stellen",

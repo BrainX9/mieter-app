@@ -5,7 +5,7 @@
     <hgroup>
       <h3>{{ bereich.bezeichnung }}</h3>
       <p>
-        {{ bereich.get_verteilerschluessel_display }}{% if not bereich.ist_direkt %}: {{ bereich.anteil_menge|zahl }} von {{ bereich.gesamtmenge|zahl }}{% endif %}
+        {{ bereich.get_verteilerschluessel_display }}{% if not bereich.ist_individuell %}: {{ bereich.anteil_menge|zahl }} von {{ bereich.gesamtmenge|zahl }}{% endif %}
         · {{ bereich.get_rundungsregel_display }}{% if bereich.rundungsregel == "n_stellen" %} ({{ bereich.nachkommastellen }}){% endif %}
       </p>
     </hgroup>
@@ -18,11 +18,11 @@
   </header>
   <div class="overflow-auto">
     <table>
-      <thead><tr><th>Kostenart</th><th>Notiz</th><th class="zahl">{% if bereich.ist_direkt %}Betrag der Wohnung{% else %}Gesamtkosten{% endif %}</th>{% if darf_verwalten %}<th></th>{% endif %}</tr></thead>
+      <thead><tr><th>Kostenart</th><th>Notiz</th><th class="zahl">{% if bereich.ist_individuell %}Betrag der Wohnung{% else %}Gesamtkosten{% endif %}</th>{% if darf_verwalten %}<th></th>{% endif %}</tr></thead>
       <tbody>
         {% for position in bereich.positionen.all %}
           <tr>
-            <td>{{ position.kostenart }}</td>
+            <td>{{ position.kostenart }}{% if position.kostenart.hinweis %}<br><small class="erlaeuterung">{{ position.kostenart.hinweis }}</small>{% endif %}</td>
             <td>{{ position.notiz }}</td>
             <td class="zahl">{{ position.betrag|euro }}</td>
             {% if darf_verwalten %}

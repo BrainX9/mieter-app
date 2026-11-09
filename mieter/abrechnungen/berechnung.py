@@ -26,13 +26,12 @@ _KONTEXT = Context(prec=40, rounding=ROUND_HALF_UP)
 WIE_VERMIETER = "wie_vermieter"
 N_STELLEN = "n_stellen"
 EXAKT = "exakt"
-DIREKT = "direkt"
+INDIVIDUELL = "individuell"
 
 MENGENEINHEITEN = {
     "wohnflaeche": "m²",
-    "einheiten": "Einheit",
-    "personen": "Person",
-    "wohneinheiten": "Wohneinheit",
+    "wohneinheiten": "Wohnung",
+    "personen_punkte": "Person/Punkt",
 }
 
 
@@ -155,7 +154,7 @@ def bereich_berechnen(eingabe: BereichEingabe) -> Bereichsergebnis:
             "anteil_menge": eingabe.anteil_menge,
         }
 
-        if eingabe.verteilerschluessel == DIREKT:
+        if eingabe.verteilerschluessel == INDIVIDUELL:
             # Der Betrag ist schon der Anteil der Wohnung, es wird nichts verteilt.
             return Bereichsergebnis(
                 **basis,

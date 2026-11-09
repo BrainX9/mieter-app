@@ -4,7 +4,9 @@ Kostenarten und Zusatzfelder sind Daten, keine Spalten: Neue Kostenarten oder Fe
 brauchen keine Migration.
 """
 
+from django import forms
 from django.conf import settings
+from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -13,6 +15,28 @@ from django.urls import reverse
 
 GELD = {"max_digits": 12, "decimal_places": 2}
 MENGE = {"max_digits": 14, "decimal_places": 4}
+
+
+class Verteilerschluessel(models.TextChoices):
+    """Wie Kosten auf die Wohnungen umgelegt werden."""
+
+    WOHNFLAECHE = "wohnflaeche", "Umlage nach Fläche (m²)"
+    WOHNEINHEITEN = "wohneinheiten", "Umlage pro Wohnung"
+    PERSONEN_PUNKTE = "personen_punkte", "Umlage nach Personen / Punkten"
+    INDIVIDUELL = "individuell", "Umlage individuell"
+
+
+class MehrfachauswahlFeld(ArrayField):
+    """Liste von Auswahlwerten, im Formular als Ankreuzfelder."""
+
+    def formfield(self, **kwargs):
+        return forms.TypedMultipleChoiceField(
+            choices=self.base_field.choices,
+            widget=forms.CheckboxSelectMultiple,
+            required=not self.blank,
+            label=self.verbose_name,
+            help_text=self.help_text,
+        )
 
 
 class WohnungsdatenQuerySet(models.QuerySet):
@@ -103,11 +127,31 @@ class Mitgliedschaft(models.Model):
         return f"{self.nutzer} – {self.wohnung} ({self.get_rolle_display()})"
 
 
+class KostenartQuerySet(models.QuerySet):
+    def passend_zu(self, verteilerschluessel):
+        """Kostenarten für einen Bereich. Ohne hinterlegten Schlüssel passt eine Kostenart immer."""
+        return self.filter(
+            Q(verteilerschluessel__contains=[verteilerschluessel]) | Q(verteilerschluessel=[])
+        )
+
+
 class Kostenart(models.Model):
     """Katalog der Kostenarten, z. B. nach § 2 BetrKV. Gilt für alle Wohnungen."""
 
     name = models.CharField("Name", max_length=200, unique=True)
     beschreibung = models.TextField("Beschreibung", blank=True)
+    verteilerschluessel = MehrfachauswahlFeld(
+        models.CharField(max_length=20, choices=Verteilerschluessel),
+        verbose_name="Passende Verteilerschlüssel",
+        default=list,
+        blank=True,
+        help_text="Nur in Bereichen mit diesen Schlüsseln wählbar. Ohne Auswahl: überall.",
+    )
+    hinweis = models.TextField(
+        "Hinweis",
+        blank=True,
+        help_text="Wird bei der Kostenart angezeigt, z. B. was zu prüfen ist.",
+    )
     betrkv_nummer = models.PositiveSmallIntegerField(
         "Nr. nach § 2 BetrKV",
         null=True,
@@ -115,6 +159,8 @@ class Kostenart(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(17)],
     )
     aktiv = models.BooleanField("Aktiv", default=True)
+
+    objects = KostenartQuerySet.as_manager()
 
     class Meta:
         verbose_name = "Kostenart"
@@ -173,12 +219,7 @@ class Abrechnungsbereich(models.Model):
 
     WOHNUNG_PFAD = "abrechnung__wohnung"
 
-    class Verteilerschluessel(models.TextChoices):
-        WOHNFLAECHE = "wohnflaeche", "Wohnfläche (m²)"
-        EINHEITEN = "einheiten", "Punkte / Einheiten"
-        PERSONEN = "personen", "Personen"
-        WOHNEINHEITEN = "wohneinheiten", "Wohneinheiten"
-        DIREKT = "direkt", "Direkt (Betrag der Wohnung)"
+    Verteilerschluessel = Verteilerschluessel
 
     class Rundungsregel(models.TextChoices):
         WIE_VERMIETER = "wie_vermieter", "Wie Vermieter (Einheitspreis auf 2 Stellen)"
@@ -251,11 +292,11 @@ class Abrechnungsbereich(models.Model):
         return self.bezeichnung
 
     @property
-    def ist_direkt(self):
-        return self.verteilerschluessel == self.Verteilerschluessel.DIREKT
+    def ist_individuell(self):
+        return self.verteilerschluessel == Verteilerschluessel.INDIVIDUELL
 
     def clean(self):
-        if self.ist_direkt:
+        if self.ist_individuell:
             return
         fehler = {}
         if self.gesamtmenge is None:
@@ -275,7 +316,7 @@ class Abrechnungsbereich(models.Model):
 class Kostenposition(models.Model):
     """Kosten einer Kostenart in einem Bereich.
 
-    Bei Verteilerschlüssel „direkt“ ist das der Betrag der Wohnung, sonst die
+    Bei „Umlage individuell“ ist das der Betrag der Wohnung, sonst die
     Gesamtkosten des Hauses.
     """
 

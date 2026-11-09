@@ -129,7 +129,7 @@ class TestAbrechnung:
         heizung = fabrik.bereich(
             a,
             bezeichnung="Heizung",
-            verteilerschluessel=Abrechnungsbereich.Verteilerschluessel.DIREKT,
+            verteilerschluessel=Abrechnungsbereich.Verteilerschluessel.INDIVIDUELL,
             gesamtmenge=None,
             anteil_menge=None,
         )
@@ -149,12 +149,12 @@ class TestAbrechnungsbereich:
             br.full_clean()
         assert set(fehler.value.message_dict) == {"gesamtmenge", "anteil_menge"}
 
-    def test_direkt_braucht_keine_mengen(self):
+    def test_individuell_braucht_keine_mengen(self):
         a = fabrik.abrechnung(fabrik.wohnung())
         Abrechnungsbereich(
             abrechnung=a,
             bezeichnung="Heizung",
-            verteilerschluessel=Abrechnungsbereich.Verteilerschluessel.DIREKT,
+            verteilerschluessel=Abrechnungsbereich.Verteilerschluessel.INDIVIDUELL,
         ).full_clean()
 
     def test_anteil_groesser_als_gesamt(self):
