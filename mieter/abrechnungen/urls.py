@@ -9,6 +9,22 @@ urlpatterns = [
     path("wohnungen/<int:pk>/bearbeiten/", views.wohnung_bearbeiten, name="wohnung_bearbeiten"),
     path("wohnungen/<int:pk>/verlassen/", views.wohnung_verlassen, name="wohnung_verlassen"),
     path("wohnungen/<int:wohnung_pk>/mitglieder/neu/", views.mitglied_neu, name="mitglied_neu"),
+    path(
+        "wohnungen/<int:wohnung_pk>/zusatzfelder/neu/",
+        views.zusatzfeld_neu,
+        name="zusatzfeld_neu",
+    ),
+    path(
+        "zusatzfelder/<int:pk>/bearbeiten/",
+        views.zusatzfeld_bearbeiten,
+        name="zusatzfeld_bearbeiten",
+    ),
+    path("zusatzfelder/<int:pk>/loeschen/", views.zusatzfeld_loeschen, name="zusatzfeld_loeschen"),
+    path(
+        "abrechnungen/<int:abrechnung_pk>/zusatzwerte/",
+        views.zusatzwerte_speichern,
+        name="zusatzwerte_speichern",
+    ),
     path("mitglieder/<int:pk>/rolle/", views.mitglied_rolle, name="mitglied_rolle"),
     path("mitglieder/<int:pk>/entfernen/", views.mitglied_entfernen, name="mitglied_entfernen"),
     path(

@@ -1,0 +1,31 @@
+{% load format %}
+<section id="zusatzwerte">
+  <h2>Zusatzwerte</h2>
+  <article>
+    {% if not zusatzfelder_vorhanden %}
+      <p>Für diese Wohnung gibt es noch keine Zusatzfelder.{% if darf_verwalten %} Du legst sie auf der <a href="{{ wohnung.get_absolute_url }}#zusatzfelder">Wohnungsseite</a> an.{% endif %}</p>
+    {% elif darf_verwalten and zusatzwerte_form %}
+      <form method="post" action="{% url 'zusatzwerte_speichern' abrechnung.pk %}" novalidate
+            hx-post="{% url 'zusatzwerte_speichern' abrechnung.pk %}" hx-target="#zusatzwerte" hx-select="#zusatzwerte" hx-select-oob="#meldungen" hx-swap="outerHTML">
+        {% csrf_token %}
+        {{ zusatzwerte_form.non_field_errors }}
+        <div class="grid zusatzwerte">
+          {% for feld, formularfeld in zusatzwerte_form.zeilen %}
+            <div>{% include "abrechnungen/_feld.html" with feld=formularfeld %}</div>
+          {% endfor %}
+        </div>
+        <small class="erlaeuterung">Leere Felder bedeuten: kein Wert.</small>
+        <button type="submit" class="outline">Zusatzwerte speichern</button>
+      </form>
+    {% else %}
+      <dl class="zusatzwerte">
+        {% for w in zusatzwerte %}
+          <dt>{{ w.feld.name }}</dt>
+          <dd>{% if w.feld.typ == "zahl" %}{{ w.wert|zahl }}{% elif w.feld.typ == "datum" %}{{ w.wert|date:"d.m.Y" }}{% else %}{{ w.wert|linebreaksbr }}{% endif %}{% if w.feld.einheit %} {{ w.feld.einheit }}{% endif %}</dd>
+        {% empty %}
+          <dd><small>Für diese Abrechnung sind keine Zusatzwerte eingetragen.</small></dd>
+        {% endfor %}
+      </dl>
+    {% endif %}
+  </article>
+</section>
