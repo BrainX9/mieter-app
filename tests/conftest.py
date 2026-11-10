@@ -7,6 +7,15 @@ def _schnelle_passwoerter(settings):
     settings.PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 
 
+@pytest.fixture(autouse=True)
+def _statische_dateien_ohne_manifest(settings):
+    """Tests laufen ohne collectstatic: Statische Dateien ohne Hash-Manifest."""
+    settings.STORAGES = {
+        **settings.STORAGES,
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }
+
+
 @pytest.fixture
 def nutzer(db):
     from allauth.account.models import EmailAddress

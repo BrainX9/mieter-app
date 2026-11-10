@@ -10,8 +10,10 @@ dependencies = [
     "django-allauth[socialaccount]>=65.21.1",
     "django-environ>=0.14.0",
     "django-htmx>=1.29.0",
+    "gunicorn>=27.0.0",
     "procrastinate[django]>=3.10.0",
     "psycopg[binary]>=3.3.8",
+    "whitenoise>=6.12.0",
 ]
 
 [dependency-groups]
@@ -37,3 +39,5 @@ select = ["E", "F", "W", "I", "UP", "B", "DJ", "SIM"]
 DJANGO_SETTINGS_MODULE = "mieter.settings"
 testpaths = ["tests"]
 addopts = "--strict-markers"
+# WhiteNoise sucht staticfiles/, das erst collectstatic im Image anlegt.
+filterwarnings = ["ignore:No directory at:UserWarning:django.core.handlers.base"]
