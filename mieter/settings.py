@@ -21,6 +21,8 @@ env = environ.Env(
     OIDC_CLIENT_SECRET=(str, ""),
     OIDC_ANZEIGENAME=(str, "Synology SSO"),
     OIDC_EMAIL_VERTRAUEN=(bool, True),
+    HSTS_SEKUNDEN=(int, 0),
+    LOG_LEVEL=(str, "INFO"),
 )
 
 # Eine lokale .env-Datei ist optional; gesetzte Umgebungsvariablen haben Vorrang.
@@ -28,8 +30,25 @@ environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
-ALLOWED_HOSTS = env("ALLOWED_HOSTS")
+# localhost immer erlaubt: Der Healthcheck im Container ruft http://localhost:8000/gesund/ auf.
+ALLOWED_HOSTS = list(dict.fromkeys([*env("ALLOWED_HOSTS"), "localhost", "127.0.0.1"]))
 CSRF_TRUSTED_ORIGINS = env("CSRF_TRUSTED_ORIGINS")
+
+
+# Betrieb hinter einem Reverse Proxy (z. B. DSM), der HTTPS übernimmt und
+# X-Forwarded-Proto und X-Forwarded-Host setzt.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
+
+# Cookies nur über HTTPS. Standard: an, sobald DEBUG aus ist. Für reinen Betrieb im
+# Heimnetz ohne HTTPS: HTTPS=False.
+HTTPS = env.bool("HTTPS", default=not DEBUG)
+SESSION_COOKIE_SECURE = HTTPS
+CSRF_COOKIE_SECURE = HTTPS
+# HSTS erst einschalten, wenn HTTPS sicher läuft (z. B. 31536000 = ein Jahr).
+SECURE_HSTS_SECONDS = env("HSTS_SEKUNDEN") if HTTPS else 0
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
 
 
 # Anwendungen
@@ -54,6 +73,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.locale.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -175,6 +195,33 @@ USE_TZ = True
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "mieter" / "static"]
 STATIC_ROOT = BASE_DIR / "staticfiles"
+# WhiteNoise liefert die statischen Dateien selbst aus, komprimiert und mit Hash im Namen.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
+}
+
+
+# Protokoll auf die Standardausgabe (im Container Manager unter „Protokoll“ sichtbar)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "einfach": {"format": "{asctime} {levelname} {name}: {message}", "style": "{"},
+    },
+    "handlers": {
+        "konsole": {"class": "logging.StreamHandler", "formatter": "einfach"},
+    },
+    "root": {"handlers": ["konsole"], "level": env("LOG_LEVEL")},
+    # Ersetzt Djangos eigene Handler, sonst erscheinen Meldungen bei DEBUG doppelt.
+    "loggers": {
+        "django": {"handlers": ["konsole"], "level": env("LOG_LEVEL"), "propagate": False},
+        # Procrastinate meldet beim Start jede Aufgabe; nur der Worker soll gesprächig sein.
+        "procrastinate": {"level": "WARNING"},
+        "procrastinate.worker": {"level": env("LOG_LEVEL")},
+    },
+}
 
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

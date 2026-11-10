@@ -65,3 +65,18 @@ jobs:
           docker run --rm -u "$(id -u):$(id -g)" -v "${PWD}:/repo"
           ghcr.io/gitleaks/gitleaks:v8.30.0
           git --redact --verbose /repo
+
+  image:
+    name: Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: mieter-app:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - run: docker/smoke-test.sh mieter-app:test

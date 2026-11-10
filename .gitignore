@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.beispiel
+!.env.synology.beispiel
 
 # Echte Daten, Uploads, Datenbank-Dumps
 daten/
