@@ -1,0 +1,44 @@
+<section id="zusatzfelder">
+  <h2>Zusatzfelder</h2>
+  <article>
+    <p class="erlaeuterung">Eigene Felder für diese Wohnung, z. B. abgelesene Einheiten je Raum oder ein Ablesedatum. Die Werte trägst du in jeder Abrechnung ein.</p>
+    <div class="overflow-auto">
+      <table>
+        <thead><tr><th>Name</th><th>Typ</th><th>Einheit</th><th class="zahl">Werte</th>{% if darf_verwalten %}<th></th>{% endif %}</tr></thead>
+        <tbody>
+          {% for feld in zusatzfelder %}
+            <tr>
+              <td>{{ feld.name }}</td>
+              <td>{{ feld.get_typ_display }}</td>
+              <td>{{ feld.einheit }}</td>
+              <td class="zahl">{{ feld.anzahl_werte }}</td>
+              {% if darf_verwalten %}
+                <td class="aktion">
+                  <a href="{% url 'zusatzfeld_bearbeiten' feld.pk %}" class="secondary klein">Bearbeiten</a>
+                  <a href="{% url 'zusatzfeld_loeschen' feld.pk %}" class="secondary klein">Löschen</a>
+                </td>
+              {% endif %}
+            </tr>
+          {% empty %}
+            <tr><td colspan="5"><small>Noch keine Zusatzfelder.</small></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if darf_verwalten and zusatzfeld_form %}
+      {% with form=zusatzfeld_form %}
+        <form method="post" action="{% url 'zusatzfeld_neu' wohnung.pk %}" class="zeile" novalidate
+              hx-post="{% url 'zusatzfeld_neu' wohnung.pk %}" hx-target="#zusatzfelder" hx-select="#zusatzfelder" hx-select-oob="#meldungen" hx-swap="outerHTML">
+          {% csrf_token %}
+          <fieldset class="grid">
+            <div>{% include "abrechnungen/_feld.html" with feld=form.name %}</div>
+            <div>{% include "abrechnungen/_feld.html" with feld=form.typ %}</div>
+            <div>{% include "abrechnungen/_feld.html" with feld=form.einheit %}</div>
+            <div>{% include "abrechnungen/_feld.html" with feld=form.reihenfolge %}</div>
+          </fieldset>
+          <button type="submit" class="outline">Zusatzfeld hinzufügen</button>
+        </form>
+      {% endwith %}
+    {% endif %}
+  </article>
+</section>

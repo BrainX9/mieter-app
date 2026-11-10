@@ -4,6 +4,7 @@
   <article class="formular">
     <h1>{{ titel }}</h1>
     <p>Soll „{{ objekt }}“ wirklich gelöscht werden? Alle zugehörigen Daten gehen dabei verloren.</p>
+    {% if hinweis %}<p><strong>{{ hinweis }}</strong></p>{% endif %}
     <form method="post">
       {% csrf_token %}
       <div class="knoepfe">

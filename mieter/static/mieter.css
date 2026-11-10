@@ -26,3 +26,5 @@ button.loeschen { background: var(--pico-del-color); border-color: var(--pico-de
 .rundungshilfe { margin-top: 1rem; }
 form.rolle { display: flex; gap: 0.5rem; align-items: center; margin: 0; }
 form.rolle select { margin: 0; width: auto; }
+.grid.zusatzwerte { grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
+td.aktion a.klein { margin-right: 0.5rem; font-size: 0.85rem; }

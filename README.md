@@ -56,7 +56,10 @@ als vertrauenswürdig; abschalten mit `OIDC_EMAIL_VERTRAUEN=False`.
 - Wer eine Wohnung anlegt, verwaltet sie. Auf der Wohnungsseite fügt man weitere
   Mitglieder über die E-Mail-Adresse ihres Kontos hinzu (Rolle „Verwalten“ oder „Nur
   lesen“), ändert Rollen oder entfernt Mitglieder. Eine Wohnung behält immer mindestens
-  ein Mitglied mit „Verwalten“. Zusatzfelder trägt man vorerst im Admin ein.
+  ein Mitglied mit „Verwalten“.
+- **Zusatzfelder** (Zahl, Text oder Datum, mit Einheit) legt man auf der Wohnungsseite
+  an; ihre Werte trägt man in jeder Abrechnung im Abschnitt „Zusatzwerte“ ein. Hat ein
+  Feld schon Werte, bleibt sein Typ fest.
 
 ## Datenmodell
 

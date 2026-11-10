@@ -11,7 +11,7 @@ Ohne JavaScript funktionieren dieselben Formulare mit normalem Neuladen.
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -27,6 +27,8 @@ from .forms import (
     RaumverbrauchForm,
     VorauszahlungForm,
     WohnungForm,
+    ZusatzfeldForm,
+    ZusatzwerteForm,
 )
 from .models import (
     Abrechnung,
@@ -37,6 +39,7 @@ from .models import (
     Raumverbrauch,
     Vorauszahlung,
     Wohnung,
+    Zusatzfeld,
 )
 
 
@@ -76,11 +79,16 @@ def wohnung_neu(request):
     return render(request, "abrechnungen/formular.html", {"form": form, "titel": "Neue Wohnung"})
 
 
-def _wohnung_seite(request, wohnung, mitglied_form=None):
+def _wohnung_seite(request, wohnung, mitglied_form=None, zusatzfeld_form=None):
     darf = _darf_verwalten(wohnung, request.user)
     abrechnungen = wohnung.abrechnungen.all()  # Jahr absteigend (Meta.ordering)
     if darf and mitglied_form is None:
         mitglied_form = MitgliedNeuForm(wohnung=wohnung)
+    if darf and zusatzfeld_form is None:
+        zusatzfeld_form = ZusatzfeldForm(
+            instance=Zusatzfeld(wohnung=wohnung),
+            initial={"reihenfolge": wohnung.zusatzfelder.count() + 1},
+        )
     return render(
         request,
         "abrechnungen/wohnung_detail.html",
@@ -93,6 +101,8 @@ def _wohnung_seite(request, wohnung, mitglied_form=None):
             ),
             "mitglied_form": mitglied_form,
             "rollen": Mitgliedschaft.Rolle.choices,
+            "zusatzfelder": wohnung.zusatzfelder.annotate(anzahl_werte=Count("werte")),
+            "zusatzfeld_form": zusatzfeld_form,
         },
     )
 
@@ -132,8 +142,16 @@ def abrechnung_neu(request, wohnung_pk):
     )
 
 
-def _detail_kontext(request, abrechnung, positionsformulare=None, vorauszahlungsformular=None):
+def _detail_kontext(
+    request,
+    abrechnung,
+    positionsformulare=None,
+    vorauszahlungsformular=None,
+    zusatzwerte_form=None,
+):
     darf = _darf_verwalten(abrechnung.wohnung, request.user)
+    if darf and zusatzwerte_form is None:
+        zusatzwerte_form = ZusatzwerteForm(abrechnung=abrechnung)
     positionsformulare = positionsformulare or {}
     bereiche = []
     for bereich in abrechnung.bereiche.prefetch_related("positionen__kostenart"):
@@ -155,6 +173,9 @@ def _detail_kontext(request, abrechnung, positionsformulare=None, vorauszahlungs
         "vorauszahlungsformular": vorauszahlungsformular,
         "ergebnis": abrechnung.berechnen(),
         "darf_verwalten": darf,
+        "zusatzfelder_vorhanden": abrechnung.wohnung.zusatzfelder.exists(),
+        "zusatzwerte": abrechnung.zusatzwerte.select_related("feld"),
+        "zusatzwerte_form": zusatzwerte_form,
     }
 
 
@@ -519,3 +540,69 @@ def wohnung_verlassen(request, pk):
         messages.success(request, f"Du hast „{wohnung}“ verlassen.")
         return _zu_mitgliedern(request, wohnung, kein_zugriff_mehr=True)
     return _zu_mitgliedern(request, wohnung)
+
+
+# Zusatzfelder (je Wohnung) und Zusatzwerte (je Abrechnung).
+
+
+@require_POST
+def zusatzfeld_neu(request, wohnung_pk):
+    wohnung = _schreiben(Wohnung, request, wohnung_pk)
+    form = ZusatzfeldForm(request.POST, instance=Zusatzfeld(wohnung=wohnung))
+    if form.is_valid():
+        feld = form.save()
+        messages.success(request, f"Zusatzfeld „{feld.name}“ angelegt.")
+        return redirect(reverse("wohnung_detail", args=[wohnung.pk]) + "#zusatzfelder")
+    return _wohnung_seite(request, wohnung, zusatzfeld_form=form)
+
+
+def zusatzfeld_bearbeiten(request, pk):
+    feld = _schreiben(Zusatzfeld, request, pk)
+    form = ZusatzfeldForm(request.POST or None, instance=feld)
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Zusatzfeld gespeichert.")
+        return redirect(reverse("wohnung_detail", args=[feld.wohnung_id]) + "#zusatzfelder")
+    return render(
+        request,
+        "abrechnungen/formular.html",
+        {"form": form, "titel": "Zusatzfeld bearbeiten", "zurueck": feld.wohnung},
+    )
+
+
+def zusatzfeld_loeschen(request, pk):
+    feld = _schreiben(Zusatzfeld, request, pk)
+    if request.method == "POST":
+        feld.delete()
+        messages.success(request, f"Zusatzfeld „{feld.name}“ gelöscht.")
+        return redirect(reverse("wohnung_detail", args=[feld.wohnung_id]) + "#zusatzfelder")
+    anzahl = feld.werte.count()
+    return render(
+        request,
+        "abrechnungen/loeschen.html",
+        {
+            "objekt": feld,
+            "titel": "Zusatzfeld löschen",
+            "zurueck": feld.wohnung,
+            "hinweis": (
+                f"Dabei gehen {anzahl} eingetragene Werte verloren."
+                if anzahl != 1
+                else "Dabei geht 1 eingetragener Wert verloren."
+            )
+            if anzahl
+            else "",
+        },
+    )
+
+
+@require_POST
+def zusatzwerte_speichern(request, abrechnung_pk):
+    abrechnung = _schreiben(Abrechnung, request, abrechnung_pk)
+    form = ZusatzwerteForm(request.POST, abrechnung=abrechnung)
+    if form.is_valid():
+        with transaction.atomic():
+            form.save()
+        messages.success(request, "Zusatzwerte gespeichert.")
+        return redirect(reverse("abrechnung_detail", args=[abrechnung.pk]) + "#zusatzwerte")
+    kontext = _detail_kontext(request, abrechnung, zusatzwerte_form=form)
+    return render(request, "abrechnungen/abrechnung_detail.html", kontext)

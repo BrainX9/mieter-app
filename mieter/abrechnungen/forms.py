@@ -21,6 +21,8 @@ from .models import (
     Raumverbrauch,
     Vorauszahlung,
     Wohnung,
+    Zusatzfeld,
+    Zusatzwert,
 )
 
 
@@ -238,3 +240,84 @@ class MitgliedNeuForm(forms.Form):
         return Mitgliedschaft.objects.create(
             nutzer=self.nutzer, wohnung=self.wohnung, rolle=self.cleaned_data["rolle"]
         )
+
+
+class ZusatzfeldForm(forms.ModelForm):
+    """Feld einer Wohnung. Der Typ ist fest, sobald es Werte gibt."""
+
+    class Meta:
+        model = Zusatzfeld
+        fields = ["name", "typ", "einheit", "reihenfolge"]
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "z. B. Einheiten Wohnzimmer"}),
+            "einheit": forms.TextInput(attrs={"placeholder": "z. B. Einheiten, m³, kWh"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk and self.instance.werte.exists():
+            self.fields["typ"].disabled = True
+            self.fields["typ"].help_text = "Das Feld hat schon Werte, der Typ bleibt deshalb fest."
+
+    def clean_name(self):
+        name = self.cleaned_data["name"].strip()
+        doppelt = (
+            Zusatzfeld.objects.filter(wohnung=self.instance.wohnung, name__iexact=name)
+            .exclude(pk=self.instance.pk)
+            .exists()
+        )
+        if doppelt:
+            raise forms.ValidationError("Ein Feld mit diesem Namen gibt es schon.")
+        return name
+
+
+class ZusatzwerteForm(forms.Form):
+    """Alle Zusatzfelder der Wohnung für eine Abrechnung. Leer heißt: kein Wert."""
+
+    SPALTE = {
+        Zusatzfeld.Typ.ZAHL: "wert_zahl",
+        Zusatzfeld.Typ.TEXT: "wert_text",
+        Zusatzfeld.Typ.DATUM: "wert_datum",
+    }
+
+    def __init__(self, *args, abrechnung, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.abrechnung = abrechnung
+        self.felder = list(abrechnung.wohnung.zusatzfelder.all())
+        werte = {w.feld_id: w for w in abrechnung.zusatzwerte.select_related("feld")}
+        for feld in self.felder:
+            name = f"feld_{feld.pk}"
+            self.fields[name] = self._formularfeld(feld)
+            if feld.pk in werte:
+                self.initial[name] = werte[feld.pk].wert
+
+    @staticmethod
+    def _formularfeld(feld):
+        label = f"{feld.name} ({feld.einheit})" if feld.einheit else feld.name
+        if feld.typ == Zusatzfeld.Typ.ZAHL:
+            formularfeld = forms.DecimalField(
+                label=label, required=False, max_digits=14, decimal_places=4, localize=True
+            )
+            formularfeld.widget = DezimalEingabe()
+            formularfeld.widget.is_localized = True
+            formularfeld.to_python = partial(_deutsch_einlesen, formularfeld.to_python)
+            return formularfeld
+        if feld.typ == Zusatzfeld.Typ.DATUM:
+            return forms.DateField(label=label, required=False, widget=DatumEingabe())
+        return forms.CharField(label=label, required=False, max_length=2000)
+
+    def zeilen(self):
+        """(Zusatzfeld, gebundenes Formularfeld) für das Template."""
+        return [(feld, self[f"feld_{feld.pk}"]) for feld in self.felder]
+
+    def save(self):
+        for feld in self.felder:
+            wert = self.cleaned_data.get(f"feld_{feld.pk}")
+            if wert is None or wert == "":
+                Zusatzwert.objects.filter(abrechnung=self.abrechnung, feld=feld).delete()
+                continue
+            daten = {"wert_zahl": None, "wert_text": "", "wert_datum": None}
+            daten[self.SPALTE[feld.typ]] = wert
+            Zusatzwert.objects.update_or_create(
+                abrechnung=self.abrechnung, feld=feld, defaults=daten
+            )
