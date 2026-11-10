@@ -13,7 +13,8 @@ case "$1" in
       --workers "${GUNICORN_WORKERS:-2}" \
       --timeout "${GUNICORN_TIMEOUT:-60}" \
       --access-logfile - \
-      --forwarded-allow-ips "*"
+      --forwarded-allow-ips "*" \
+      --no-control-socket
     ;;
   worker)
     exec python manage.py procrastinate worker
