@@ -24,3 +24,5 @@ button.loeschen { background: var(--pico-del-color); border-color: var(--pico-de
 .mengenhilfe { display: block; margin: -0.5rem 0 1rem; }
 .mengenhilfe[hidden], [data-nur-mengen][hidden], [data-nur-n-stellen][hidden] { display: none; }
 .rundungshilfe { margin-top: 1rem; }
+form.rolle { display: flex; gap: 0.5rem; align-items: center; margin: 0; }
+form.rolle select { margin: 0; width: auto; }

@@ -7,6 +7,10 @@ urlpatterns = [
     path("wohnungen/neu/", views.wohnung_neu, name="wohnung_neu"),
     path("wohnungen/<int:pk>/", views.wohnung_detail, name="wohnung_detail"),
     path("wohnungen/<int:pk>/bearbeiten/", views.wohnung_bearbeiten, name="wohnung_bearbeiten"),
+    path("wohnungen/<int:pk>/verlassen/", views.wohnung_verlassen, name="wohnung_verlassen"),
+    path("wohnungen/<int:wohnung_pk>/mitglieder/neu/", views.mitglied_neu, name="mitglied_neu"),
+    path("mitglieder/<int:pk>/rolle/", views.mitglied_rolle, name="mitglied_rolle"),
+    path("mitglieder/<int:pk>/entfernen/", views.mitglied_entfernen, name="mitglied_entfernen"),
     path(
         "wohnungen/<int:wohnung_pk>/abrechnungen/neu/",
         views.abrechnung_neu,

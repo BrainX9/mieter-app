@@ -5,6 +5,7 @@ from decimal import Decimal
 from functools import partial
 
 from django import forms
+from django.contrib.auth import get_user_model
 
 from mieter.kern.templatetags.format import zahl_formatieren
 from mieter.kern.zahlen import deutsche_zahl
@@ -16,6 +17,7 @@ from .models import (
     Brennstoffbezug,
     Kostenart,
     Kostenposition,
+    Mitgliedschaft,
     Raumverbrauch,
     Vorauszahlung,
     Wohnung,
@@ -202,3 +204,37 @@ class VorauszahlungForm(LokalisierteZahlenMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["bereich"].queryset = self.instance.abrechnung.bereiche.all()
         self.fields["bereich"].empty_label = "ohne Bereich"
+
+
+class MitgliedNeuForm(forms.Form):
+    """Mitglied über die E-Mail-Adresse eines vorhandenen Kontos hinzufügen."""
+
+    email = forms.EmailField(
+        label="E-Mail-Adresse",
+        widget=forms.EmailInput(attrs={"placeholder": "name@example.org", "autocomplete": "off"}),
+    )
+    rolle = forms.ChoiceField(
+        label="Rolle", choices=Mitgliedschaft.Rolle, initial=Mitgliedschaft.Rolle.LESEN
+    )
+
+    def __init__(self, *args, wohnung, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.wohnung = wohnung
+
+    def clean_email(self):
+        email = self.cleaned_data["email"]
+        nutzer = get_user_model().objects.filter(email__iexact=email, is_active=True).first()
+        if nutzer is None:
+            raise forms.ValidationError(
+                "Zu dieser E-Mail-Adresse gibt es kein Konto. Das Konto muss zuerst angelegt "
+                "werden (im Admin oder über die Registrierung)."
+            )
+        if self.wohnung.mitgliedschaften.filter(nutzer=nutzer).exists():
+            raise forms.ValidationError("Diese Person ist schon Mitglied der Wohnung.")
+        self.nutzer = nutzer
+        return email
+
+    def save(self):
+        return Mitgliedschaft.objects.create(
+            nutzer=self.nutzer, wohnung=self.wohnung, rolle=self.cleaned_data["rolle"]
+        )

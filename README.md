@@ -53,8 +53,10 @@ als vertrauenswürdig; abschalten mit `OIDC_EMAIL_VERTRAUEN=False`.
 - Zahlen gibt man deutsch ein (`1.234,56`), Beträge erscheinen als `1.234,56 €`.
 - Beim Anlegen eines Bereichs erklärt das Formular je Verteilerschlüssel, was als
   Gesamtmenge und Anteil einzutragen ist, und zeigt die Rundungsregeln an einem Beispiel.
-- Wer eine Wohnung anlegt, verwaltet sie. Weitere Mitglieder (auch „Nur lesen“) und
-  Zusatzfelder trägt man vorerst im Admin ein.
+- Wer eine Wohnung anlegt, verwaltet sie. Auf der Wohnungsseite fügt man weitere
+  Mitglieder über die E-Mail-Adresse ihres Kontos hinzu (Rolle „Verwalten“ oder „Nur
+  lesen“), ändert Rollen oder entfernt Mitglieder. Eine Wohnung behält immer mindestens
+  ein Mitglied mit „Verwalten“. Zusatzfelder trägt man vorerst im Admin ein.
 
 ## Datenmodell
 

@@ -1,0 +1,66 @@
+{# Formulare laden per HTMX nur diesen Abschnitt und die Meldungen neu, ohne JavaScript die Seite. #}
+<section id="mitglieder">
+  <h2>Mitglieder</h2>
+  <article>
+    <div class="overflow-auto">
+      <table>
+        <thead><tr><th>Konto</th><th>Rolle</th>{% if darf_verwalten %}<th></th>{% endif %}</tr></thead>
+        <tbody>
+          {% for m in mitglieder %}
+            <tr>
+              <td>{{ m.nutzer.get_full_name|default:m.nutzer.email }}{% if m.nutzer.get_full_name %}<br><small>{{ m.nutzer.email }}</small>{% endif %}{% if m.nutzer == user %} <small>(du)</small>{% endif %}</td>
+              <td>
+                {% if darf_verwalten %}
+                  <form method="post" action="{% url 'mitglied_rolle' m.pk %}" class="rolle"
+                        hx-post="{% url 'mitglied_rolle' m.pk %}" hx-target="#mitglieder" hx-select="#mitglieder" hx-select-oob="#meldungen" hx-swap="outerHTML">
+                    {% csrf_token %}
+                    <select name="rolle" aria-label="Rolle von {{ m.nutzer.email }}">
+                      {% for wert, name in rollen %}<option value="{{ wert }}"{% if wert == m.rolle %} selected{% endif %}>{{ name }}</option>{% endfor %}
+                    </select>
+                    <button type="submit" class="secondary outline klein">Ändern</button>
+                  </form>
+                {% else %}
+                  {{ m.get_rolle_display }}
+                {% endif %}
+              </td>
+              {% if darf_verwalten %}
+                <td class="aktion">
+                  <form method="post" action="{% url 'mitglied_entfernen' m.pk %}"
+                        hx-post="{% url 'mitglied_entfernen' m.pk %}" hx-target="#mitglieder" hx-select="#mitglieder" hx-select-oob="#meldungen" hx-swap="outerHTML"
+                        hx-confirm="{% if m.nutzer == user %}Wohnung wirklich verlassen? Danach siehst du sie nicht mehr.{% else %}{{ m.nutzer.email }} aus der Wohnung entfernen?{% endif %}">
+                    {% csrf_token %}
+                    <button type="submit" class="secondary outline klein" aria-label="{{ m.nutzer.email }} entfernen">Entfernen</button>
+                  </form>
+                </td>
+              {% endif %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <small class="erlaeuterung">„Verwalten“ darf alles ändern, „Nur lesen“ sieht die Wohnung und ihre Abrechnungen. Eine Wohnung braucht immer mindestens ein Mitglied mit „Verwalten“.</small>
+
+    {% if darf_verwalten and mitglied_form %}
+      {% with form=mitglied_form %}
+        <form method="post" action="{% url 'mitglied_neu' wohnung.pk %}" class="zeile" novalidate
+              hx-post="{% url 'mitglied_neu' wohnung.pk %}" hx-target="#mitglieder" hx-select="#mitglieder" hx-select-oob="#meldungen" hx-swap="outerHTML">
+          {% csrf_token %}
+          <fieldset class="grid">
+            <div>{% include "abrechnungen/_feld.html" with feld=form.email %}</div>
+            <div>{% include "abrechnungen/_feld.html" with feld=form.rolle %}</div>
+          </fieldset>
+          <button type="submit" class="outline">Mitglied hinzufügen</button>
+        </form>
+      {% endwith %}
+    {% endif %}
+
+    {% if not darf_verwalten %}
+      <form method="post" action="{% url 'wohnung_verlassen' wohnung.pk %}"
+            hx-post="{% url 'wohnung_verlassen' wohnung.pk %}" hx-target="#mitglieder" hx-select="#mitglieder" hx-select-oob="#meldungen" hx-swap="outerHTML"
+            hx-confirm="Wohnung wirklich verlassen? Danach siehst du sie nicht mehr.">
+        {% csrf_token %}
+        <button type="submit" class="secondary outline">Wohnung verlassen</button>
+      </form>
+    {% endif %}
+  </article>
+</section>
