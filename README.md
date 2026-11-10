@@ -21,6 +21,16 @@ uv run python manage.py runserver
 
 Die App läuft dann unter <http://localhost:8000/>, die Verwaltung unter `/admin/`.
 
+## Betrieb
+
+Für den Betrieb gibt es ein fertiges Image `ghcr.io/brainx9/mieter-app` (amd64 und arm64)
+und eine [`compose.yml`](compose.yml) mit Datenbank, Web und Worker. Die Schritt-für-Schritt-
+Anleitung für die Synology steht in [docs/synology.md](docs/synology.md).
+
+- Lokal bauen und prüfen: `docker build -t mieter-app:test .`, dann
+  `docker/smoke-test.sh` und `docker/compose-test.sh`.
+- Jeder Merge auf `main` veröffentlicht `latest`, ein Git-Tag `v0.1.0` die Version `0.1.0`.
+
 ## Anmeldung
 
 - Angemeldet wird mit E-Mail-Adresse und Passwort. Ohne Anmeldung ist keine Seite erreichbar.

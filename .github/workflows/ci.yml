@@ -80,3 +80,4 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - run: docker/smoke-test.sh mieter-app:test
+      - run: docker/compose-test.sh mieter-app:test

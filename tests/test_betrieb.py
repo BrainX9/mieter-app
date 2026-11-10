@@ -1,6 +1,7 @@
 """Betrieb im Container: Statusseite und Einstellungen hinter dem Reverse Proxy."""
 
 import os
+import re
 import runpy
 import subprocess
 from pathlib import Path
@@ -102,3 +103,49 @@ class TestImage:
 
     def test_startskript_syntax(self):
         subprocess.run(["sh", "-n", str(WURZEL / "docker" / "start.sh")], check=True)
+
+
+class TestCompose:
+    compose = (WURZEL / "compose.yml").read_text()
+    vorlage = (WURZEL / ".env.synology.beispiel").read_text()
+
+    def variablen_der_vorlage(self):
+        return set(re.findall(r"^#? ?([A-Z][A-Z0-9_]+)=", self.vorlage, re.MULTILINE))
+
+    def test_ports_nur_lokal(self):
+        ports = re.findall(r"^\s+- \"(.*:8000)\"$", self.compose, re.MULTILINE)
+        assert ports == ["127.0.0.1:${MIETER_PORT:-8000}:8000"]
+
+    def test_kein_backup_dienst(self):
+        assert "backup:" not in self.compose
+
+    def test_passwort_nur_aus_env(self):
+        assert "${POSTGRES_PASSWORD:?" in self.compose
+        assert "SECRET_KEY" not in self.compose
+
+    def test_vorlage_nur_platzhalter(self):
+        werte = dict(
+            z.split("=", 1) for z in self.vorlage.splitlines() if z and not z.startswith("#")
+        )
+        for name in ("SECRET_KEY", "POSTGRES_PASSWORD", "ALLOWED_HOSTS"):
+            assert werte[name].startswith("<"), name
+        assert werte["REGISTRIERUNG_OFFEN"] == "False"
+
+    def test_vorlage_kennt_nur_bekannte_variablen(self):
+        bekannt = (
+            EINSTELLUNGEN.read_text() + self.compose + (WURZEL / "docker" / "start.sh").read_text()
+        )
+        for name in self.variablen_der_vorlage():
+            assert name in bekannt, name
+
+    def test_vorlage_wird_committet(self):
+        ergebnis = subprocess.run(
+            ["git", "check-ignore", "-q", ".env.synology.beispiel"], cwd=WURZEL
+        )
+        assert ergebnis.returncode == 1
+
+    @pytest.mark.parametrize("skript", ["smoke-test.sh", "compose-test.sh"])
+    def test_testskripte(self, skript):
+        pfad = WURZEL / "docker" / skript
+        assert os.access(pfad, os.X_OK)
+        subprocess.run(["sh", "-n", str(pfad)], check=True)
